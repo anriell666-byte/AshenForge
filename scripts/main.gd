@@ -13,6 +13,8 @@ var forge_view: Control
 var header_label: Label
 var weapon_label: Label
 var stats_label: Label
+var progression_label: Label
+var frenzy_label: Label
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -44,13 +46,13 @@ func _build_screen() -> void:
 	add_child(margin)
 
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
+	column.add_theme_constant_override("separation", 8)
 	margin.add_child(column)
 
 	header_label = Label.new()
 	header_label.text = "ASHENFORGE"
 	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header_label.add_theme_font_size_override("font_size", 32)
+	header_label.add_theme_font_size_override("font_size", 29)
 	header_label.add_theme_color_override("font_color", Color("#f0d6b2"))
 	column.add_child(header_label)
 
@@ -62,7 +64,7 @@ func _build_screen() -> void:
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	column.add_child(panel)
 	var panel_column := VBoxContainer.new()
-	panel_column.add_theme_constant_override("separation", 7)
+	panel_column.add_theme_constant_override("separation", 6)
 	panel.add_child(panel_column)
 
 	weapon_label = Label.new()
@@ -73,18 +75,29 @@ func _build_screen() -> void:
 
 	stats_label = Label.new()
 	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stats_label.add_theme_font_size_override("font_size", 15)
+	stats_label.add_theme_font_size_override("font_size", 14)
 	panel_column.add_child(stats_label)
 
-	heat_bar = _make_bar(panel_column, "Жар горна", Color("#e67e45"))
+	progression_label = Label.new()
+	progression_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	progression_label.add_theme_color_override("font_color", Color("#d7c18e"))
+	panel_column.add_child(progression_label)
+
+	frenzy_label = Label.new()
+	frenzy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	frenzy_label.add_theme_font_size_override("font_size", 14)
+	frenzy_label.add_theme_color_override("font_color", Color("#ffad58"))
+	panel_column.add_child(frenzy_label)
+
+	heat_bar = _make_bar(panel_column, "Накал клинка", Color("#e67e45"))
 	quality_bar = _make_bar(panel_column, "Качество клинка", Color("#d7c18e"))
 	durability_bar = _make_bar(panel_column, "Прочность", Color("#8fae9b"))
 
 	message_label = Label.new()
-	message_label.text = "Разожги горн. Выкуй клинок. Не заставляй дракона ждать."
+	message_label.text = "Куй клинок. Десятый удар зарядит шквал FRENZY."
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	message_label.custom_minimum_size.y = 48
+	message_label.custom_minimum_size.y = 52
 	message_label.add_theme_color_override("font_color", Color("#e4d5c4"))
 	column.add_child(message_label)
 
@@ -114,7 +127,7 @@ func _build_screen() -> void:
 	column.add_child(upgrade_button)
 
 	var footer := Label.new()
-	footer.text = "ГЛАВА • ЗОЛОТО • ДАНЬ"
+	footer.text = "КОНТРАКТ • РЕЛИКВИИ • ДРАКОН"
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_color_override("font_color", Color("#9d929f"))
 	column.add_child(footer)
@@ -129,18 +142,18 @@ func _panel_style() -> StyleBox:
 	style.border_color = Color("#66515a")
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(12)
-	style.set_content_margin_all(13)
+	style.set_content_margin_all(12)
 	return style
 
 func _make_bar(parent: VBoxContainer, caption: String, fill: Color) -> ProgressBar:
 	var label := Label.new()
 	label.text = caption
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", 12)
 	parent.add_child(label)
 	var bar := ProgressBar.new()
 	bar.max_value = 100
 	bar.show_percentage = false
-	bar.custom_minimum_size.y = 13
+	bar.custom_minimum_size.y = 12
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color("#29232d")
 	bg.set_corner_radius_all(5)
@@ -155,8 +168,8 @@ func _make_bar(parent: VBoxContainer, caption: String, fill: Color) -> ProgressB
 func _make_button(caption: String) -> Button:
 	var button := Button.new()
 	button.text = caption
-	button.custom_minimum_size.y = 52
-	button.add_theme_font_size_override("font_size", 17)
+	button.custom_minimum_size.y = 50
+	button.add_theme_font_size_override("font_size", 16)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color("#49343a")
 	normal.border_color = Color("#9a705c")
@@ -199,16 +212,25 @@ func _on_upgrade() -> void:
 	_refresh()
 
 func _refresh() -> void:
-	header_label.text = "ASHENFORGE     •     ГЛАВА %d" % state.chapter
-	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт нового клинка"
+	header_label.text = "ASHENFORGE  •  ДЕНЬ %d/%d" % [state.day, state.contract_days]
+	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
 	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
+	progression_label.text = "Удары по клинку: %d/%d     Глава: %d" % [state.strikes_on_blade, forge.STRIKES_FOR_FRENZY, state.chapter]
+	if state.frenzy_hits > 0:
+		frenzy_label.text = "FRENZY АКТИВЕН • безопасных ударов: %d" % state.frenzy_hits
+	elif state.frenzy_ready:
+		frenzy_label.text = "FRENZY ЗАРЯЖЕН • следующий удар!"
+	else:
+		frenzy_label.text = "Заряд FRENZY: %d%%" % int(minf(100.0, float(state.strikes_on_blade) / float(forge.STRIKES_FOR_FRENZY) * 100.0))
 	heat_bar.value = state.heat
 	quality_bar.value = state.quality
 	durability_bar.value = state.durability
 	strike_button.disabled = not state.has_blade
 	sell_button.disabled = not state.has_blade
 	cool_button.disabled = not state.has_blade
-	tribute_button.disabled = state.gold < state.tribute_goal
-	upgrade_button.disabled = state.gold < 45 * (int(state.upgrades.get("bellows", 0)) + 1)
+	tribute_button.disabled = state.gold < state.tribute_goal or state.contract_complete
+	upgrade_button.disabled = state.gold < 45 * (int(state.upgrades.get("bellows", 0)) + 1) or int(state.upgrades.get("bellows", 0)) >= 5
 	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
+	if state.contract_complete:
+		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
 	SaveManager.save_game(state)
