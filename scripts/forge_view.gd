@@ -6,6 +6,18 @@ var awakening_flash: float = 0.0
 var aura_phase: float = 0.0
 var current_weapon_id: String = "coal_blade"
 var blade_awakened: bool = false
+var heat_level: float = 28.0
+var quality_level: float = 8.0
+var durability_level: float = 100.0
+var forge_outcome: String = ""
+var flame_phase: float = 0.0
+
+func set_forge_state(heat: float, quality: float, durability: float, outcome: String) -> void:
+	heat_level = clampf(heat, 0.0, 100.0)
+	quality_level = clampf(quality, 0.0, 100.0)
+	durability_level = clampf(durability, 0.0, 100.0)
+	forge_outcome = outcome
+	queue_redraw()
 
 func set_blade_visual(weapon_id: String, awakened: bool) -> void:
 	current_weapon_id = weapon_id
@@ -28,6 +40,7 @@ func _process(delta: float) -> void:
 	sparks = move_toward(sparks, 0.0, delta * 1.8)
 	awakening_flash = move_toward(awakening_flash, 0.0, delta * 0.65)
 	aura_phase = fposmod(aura_phase + delta * 2.2, TAU)
+	flame_phase = fposmod(flame_phase + delta * 4.0, TAU)
 	queue_redraw()
 
 func _draw() -> void:
@@ -47,6 +60,12 @@ func _draw() -> void:
 		Vector2(s.x*.43,s.y*.57)
 	]), Color("#f47a27"))
 	draw_circle(Vector2(s.x * 0.5, s.y * 0.50), s.x * 0.045, Color(1.0, 0.72, 0.28, 0.7))
+	var flame_glow: float = 0.5 + 0.5 * sin(flame_phase)
+	var fire_color := Color("#ff6b2b") if heat_level > 65.0 else Color("#e89a45")
+	for flame_index in range(5):
+		var flame_x: float = s.x * (0.405 + float(flame_index) * 0.047)
+		var flame_height: float = s.y * (0.045 + flame_glow * 0.035 + heat_level * 0.00025)
+		draw_colored_polygon(PackedVector2Array([Vector2(flame_x - 7.0, s.y * 0.55), Vector2(flame_x, s.y * 0.55 - flame_height), Vector2(flame_x + 8.0, s.y * 0.55)]), Color(fire_color, 0.55 + flame_glow * 0.3))
 	# Stone anvil
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(s.x*.22,s.y*.69), Vector2(s.x*.78,s.y*.69), Vector2(s.x*.72,s.y*.75),

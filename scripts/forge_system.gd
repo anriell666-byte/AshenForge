@@ -4,7 +4,7 @@ class_name AshenForgeSystem
 const STRIKES_FOR_FRENZY := 10
 const FRENZY_SAFE_HITS := 3
 
-func strike(state: AshenGameState) -> Dictionary:
+func strike(state: AshenGameState, timing_grade: String = "good") -> Dictionary:
 	if not state.has_blade:
 		return {"ok": false, "message": "Сначала возьми новую заготовку."}
 
@@ -21,7 +21,12 @@ func strike(state: AshenGameState) -> Dictionary:
 	var luck_level := int(state.upgrades.get("luck", 0))
 	var luck_bonus := float(luck_level) * 0.025
 	var anvil_level := int(state.upgrades.get("anvil", 0))
-	var destruction_chance := clampf(0.10 * float(weapon.break_risk) - luck_bonus - relics.destruction_reduction(state), 0.02, 0.30)
+	var timing_multiplier: float = 1.0
+	if timing_grade == "perfect":
+		timing_multiplier = 0.45
+	elif timing_grade == "rough":
+		timing_multiplier = 1.12
+	var destruction_chance := clampf((0.10 * float(weapon.break_risk) - luck_bonus - relics.destruction_reduction(state)) * timing_multiplier, 0.01, 0.30)
 	if ability_id == "dragon_hide":
 		destruction_chance *= 0.65
 	var roll := randf()
@@ -30,7 +35,7 @@ func strike(state: AshenGameState) -> Dictionary:
 		outcome = "frenzy"
 	elif roll < destruction_chance:
 		outcome = "destruction"
-	elif roll < maxf(0.08, 0.28 - luck_bonus):
+	elif roll < maxf(0.06, (0.16 if timing_grade == "perfect" else (0.33 if timing_grade == "rough" else 0.28)) - luck_bonus):
 		outcome = "bad"
 	elif roll > (0.82 if ability_id == "glass_precision" else 0.88) - luck_bonus:
 		outcome = "great"
@@ -38,6 +43,10 @@ func strike(state: AshenGameState) -> Dictionary:
 	state.strikes_on_blade += 1
 	state.heat = minf(100.0, state.heat + randf_range(5.0, 11.0) * float(weapon.heat_scale))
 	var power := randf_range(6.0, 11.0) * float(weapon.quality_scale) * (1.0 + float(anvil_level) * 0.06)
+	if timing_grade == "perfect":
+		power *= 1.32
+	elif timing_grade == "rough":
+		power *= 0.88
 	if ability_id == "spark_dance":
 		power *= 1.15
 	var wear := randf_range(5.0, 9.0) * float(weapon.durability_scale) * (1.0 - float(anvil_level) * 0.035)
@@ -49,6 +58,8 @@ func strike(state: AshenGameState) -> Dictionary:
 	if _has_synergy(state):
 		quality_bonus += 0.75
 	var message := ""
+	if timing_grade == "perfect":
+		quality_bonus += 2.5
 
 	match outcome:
 		"destruction":
@@ -83,6 +94,10 @@ func strike(state: AshenGameState) -> Dictionary:
 		message += " Шквал заряжен! Следующий удар активирует FRENZY."
 
 	state.last_forge_result = outcome
+	if timing_grade == "perfect":
+		message = "ТОЧНЫЙ УДАР! " + message
+	elif timing_grade == "rough":
+		message = "СБИТЫЙ РИТМ. " + message
 	return {"ok": true, "outcome": outcome, "frenzy": frenzy_this_hit, "broken": not state.has_blade, "message": message}
 
 func _has_synergy(state: AshenGameState) -> bool:

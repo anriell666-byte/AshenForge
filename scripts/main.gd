@@ -11,6 +11,7 @@ const AchievementSystem = preload("res://scripts/achievement_system.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
 const DragonCombat = preload("res://scripts/dragon_combat.gd")
 const DRAGON_VIEW_SCRIPT = preload("res://scripts/dragon_arena_view.gd")
+const TIMING_METER_SCRIPT = preload("res://scripts/timing_meter.gd")
 
 var state = GameState.new()
 var forge = ForgeSystem.new()
@@ -51,6 +52,7 @@ var quality_bar: ProgressBar
 var durability_bar: ProgressBar
 var message_label: Label
 var strike_button: Button
+var timing_meter: Control
 var sell_button: Button
 var tribute_button: Button
 var cool_button: Button
@@ -217,6 +219,11 @@ func _build_screen() -> void:
 	strike_button.custom_minimum_size.y = 62
 	strike_button.pressed.connect(_on_strike)
 	column.add_child(strike_button)
+	timing_meter = Control.new()
+	timing_meter.set_script(TIMING_METER_SCRIPT)
+	timing_meter.custom_minimum_size = Vector2(0, 62)
+	timing_meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(timing_meter)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -563,7 +570,9 @@ func _on_enter_dragon_lair() -> void:
 func _on_battle_action(action: String) -> void:
 	var result: Dictionary = dragon_combat.act(state, action)
 	battle_message = str(result.get("message", ""))
-	if dragon_view.has_method("play_hit") and action == "attack":
+	if dragon_view.has_method("play_player_action"):
+		dragon_view.play_player_action(action)
+	elif dragon_view.has_method("play_hit") and action == "attack":
 		dragon_view.play_hit()
 	if bool(result.get("won", false)) or bool(result.get("lost", false)):
 		message_label.text = str(result.get("message", ""))
@@ -585,6 +594,8 @@ func _update_battle_ui() -> void:
 	battle_title.text = "%s  •  ФАЗА %d  •  РАУНД %d" % [dragon_combat.form_name(state), state.dragon_phase, state.dragon_round]
 	if dragon_view.has_method("set_dragon_form"):
 		dragon_view.set_dragon_form(state.dragon_form)
+	if dragon_view.has_method("set_combat_intent"):
+		dragon_view.set_combat_intent(state.dragon_intent, state.dragon_phase)
 	battle_status.text = battle_message
 	battle_intent.text = dragon_combat.intent_text(state)
 	dragon_health_bar.max_value = maxf(1.0, state.dragon_max_hp)
@@ -660,7 +671,10 @@ func _on_cycle_weapon() -> void:
 	_refresh()
 
 func _on_strike() -> void:
-	var result: Dictionary = forge.strike(state)
+	var timing_grade: String = "good"
+	if timing_meter != null and timing_meter.has_method("get_timing_grade"):
+		timing_grade = str(timing_meter.get_timing_grade())
+	var result: Dictionary = forge.strike(state, timing_grade)
 	message_label.text = str(result.get("message", ""))
 	if forge_view.has_method("play_strike"):
 		forge_view.play_strike()
@@ -724,6 +738,8 @@ func _on_upgrade(upgrade_id: String) -> void:
 func _refresh() -> void:
 	if forge_view.has_method("set_blade_visual"):
 		forge_view.set_blade_visual(state.weapon_id, state.weapon_awakened and state.awakened_weapon_id == state.weapon_id)
+	if forge_view.has_method("set_forge_state"):
+		forge_view.set_forge_state(state.heat, state.quality, state.durability, state.last_forge_result)
 	header_label.text = "ASHENFORGE  •  ДЕНЬ %d/%d" % [state.day, state.contract_days]
 	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
 	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
