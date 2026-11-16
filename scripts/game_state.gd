@@ -25,6 +25,13 @@ var frenzy_hits: int = 0
 var last_forge_result: String = ""
 var upgrades: Dictionary = {"bellows": 0, "anvil": 0, "luck": 0}
 var relics: Dictionary = {}
+var battle_active: bool = false
+var dragon_hp: float = 420.0
+var dragon_max_hp: float = 420.0
+var player_hp: float = 120.0
+var dragon_round: int = 1
+var dragon_intent: String = "claw"
+var dragon_defeated: bool = false
 
 func to_dict() -> Dictionary:
 	return {
@@ -38,7 +45,11 @@ func to_dict() -> Dictionary:
 		"best_sale": best_sale, "total_blades": total_blades,
 		"strikes_on_blade": strikes_on_blade, "frenzy_ready": frenzy_ready,
 		"frenzy_hits": frenzy_hits, "last_forge_result": last_forge_result,
-		"upgrades": upgrades, "relics": relics
+		"upgrades": upgrades, "relics": relics,
+		"battle_active": battle_active, "dragon_hp": dragon_hp,
+		"dragon_max_hp": dragon_max_hp, "player_hp": player_hp,
+		"dragon_round": dragon_round, "dragon_intent": dragon_intent,
+		"dragon_defeated": dragon_defeated
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -72,3 +83,10 @@ func from_dict(data: Dictionary) -> void:
 	var saved_relics = data.get("relics", relics)
 	if saved_relics is Dictionary:
 		relics = saved_relics
+	battle_active = bool(data.get("battle_active", false))
+	dragon_hp = float(data.get("dragon_hp", dragon_hp))
+	dragon_max_hp = float(data.get("dragon_max_hp", dragon_max_hp))
+	player_hp = float(data.get("player_hp", player_hp))
+	dragon_round = int(data.get("dragon_round", dragon_round))
+	dragon_intent = str(data.get("dragon_intent", dragon_intent))
+	dragon_defeated = bool(data.get("dragon_defeated", false))

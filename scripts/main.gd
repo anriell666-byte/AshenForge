@@ -8,6 +8,8 @@ const WeaponSystem = preload("res://scripts/weapon_system.gd")
 const MerchantSystem = preload("res://scripts/merchant_system.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
+const DragonCombat = preload("res://scripts/dragon_combat.gd")
+const DRAGON_VIEW_SCRIPT = preload("res://scripts/dragon_arena_view.gd")
 
 var state = GameState.new()
 var forge = ForgeSystem.new()
@@ -15,6 +17,17 @@ var economy = EconomySystem.new()
 var relic_machine = RelicSystem.new()
 var weapon_system = WeaponSystem.new()
 var merchant = MerchantSystem.new()
+var dragon_combat = DragonCombat.new()
+var forge_ui: Control
+var dragon_view: Control
+var battle_overlay: PanelContainer
+var battle_button: Button
+var battle_title: Label
+var battle_status: Label
+var battle_message: String = "Пламя древнего существа освещает зал."
+var battle_intent: Label
+var dragon_health_bar: ProgressBar
+var player_health_bar: ProgressBar
 var forge_view: Control
 var header_label: Label
 var weapon_label: Label
@@ -52,8 +65,9 @@ func _build_screen() -> void:
 	add_child(forge_view)
 	move_child(forge_view, 0)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	forge_ui = MarginContainer.new()
+	forge_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var margin := forge_ui
 	margin.add_theme_constant_override("margin_left", 22)
 	margin.add_theme_constant_override("margin_right", 22)
 	margin.add_theme_constant_override("margin_top", 22)
@@ -192,6 +206,10 @@ func _build_screen() -> void:
 	tribute_button.pressed.connect(_on_tribute)
 	column.add_child(tribute_button)
 
+	battle_button = _make_button("ВОЙТИ В ЛОГОВО ДРАКОНА")
+	battle_button.pressed.connect(_on_enter_dragon_lair)
+	column.add_child(battle_button)
+
 	upgrade_button = _make_button("Улучшить мехи • 45 золота")
 	upgrade_button.pressed.connect(_on_upgrade)
 	column.add_child(upgrade_button)
@@ -205,6 +223,113 @@ func _build_screen() -> void:
 	var spacer_bottom := Control.new()
 	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(spacer_bottom)
+	_build_battle_overlay()
+
+
+func _build_battle_overlay() -> void:
+	dragon_view = Control.new()
+	dragon_view.set_script(DRAGON_VIEW_SCRIPT)
+	dragon_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dragon_view.visible = false
+	add_child(dragon_view)
+	move_child(dragon_view, 1)
+
+	battle_overlay = PanelContainer.new()
+	battle_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	battle_overlay.add_theme_stylebox_override("panel", _panel_style())
+	battle_overlay.visible = false
+	add_child(battle_overlay)
+	var outer := MarginContainer.new()
+	outer.add_theme_constant_override("margin_left", 24)
+	outer.add_theme_constant_override("margin_right", 24)
+	outer.add_theme_constant_override("margin_top", 34)
+	outer.add_theme_constant_override("margin_bottom", 34)
+	battle_overlay.add_child(outer)
+	var battle_column := VBoxContainer.new()
+	battle_column.add_theme_constant_override("separation", 12)
+	outer.add_child(battle_column)
+	var top_space := Control.new()
+	top_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	battle_column.add_child(top_space)
+	battle_title = Label.new()
+	battle_title.text = "ЛОГОВО ДРАКОНА"
+	battle_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	battle_title.add_theme_font_size_override("font_size", 26)
+	battle_title.add_theme_color_override("font_color", Color("#f0c18e"))
+	battle_column.add_child(battle_title)
+	battle_status = Label.new()
+	battle_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	battle_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	battle_status.custom_minimum_size.y = 64
+	battle_status.add_theme_color_override("font_color", Color("#ead9c8"))
+	battle_column.add_child(battle_status)
+	dragon_health_bar = _make_bar(battle_column, "ЗДОРОВЬЕ ДРАКОНА", Color("#bd514b"))
+	player_health_bar = _make_bar(battle_column, "ТВОЁ ЗДОРОВЬЕ", Color("#8fae9b"))
+	battle_intent = Label.new()
+	battle_intent.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	battle_intent.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	battle_intent.custom_minimum_size.y = 48
+	battle_intent.add_theme_color_override("font_color", Color("#ffb45e"))
+	battle_intent.add_theme_font_size_override("font_size", 17)
+	battle_column.add_child(battle_intent)
+	var attack := _make_button("⚔  УДАРИТЬ КЛИНКОМ")
+	attack.custom_minimum_size.y = 62
+	attack.pressed.connect(_on_battle_action.bind("attack"))
+	battle_column.add_child(attack)
+	var defense_row := HBoxContainer.new()
+	defense_row.add_theme_constant_override("separation", 8)
+	battle_column.add_child(defense_row)
+	var dodge := _make_button("Уклониться")
+	dodge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dodge.pressed.connect(_on_battle_action.bind("dodge"))
+	defense_row.add_child(dodge)
+	var guard := _make_button("Блок")
+	guard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	guard.pressed.connect(_on_battle_action.bind("guard"))
+	defense_row.add_child(guard)
+	var leave := _make_button("Отступить в кузницу")
+	leave.pressed.connect(_on_leave_battle)
+	battle_column.add_child(leave)
+	var bottom_space := Control.new()
+	bottom_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	battle_column.add_child(bottom_space)
+
+func _on_enter_dragon_lair() -> void:
+	var result: Dictionary = dragon_combat.begin(state)
+	message_label.text = str(result.get("message", ""))
+	battle_message = str(result.get("message", "Пламя древнего существа освещает зал."))
+	if bool(result.get("ok", false)):
+		_refresh()
+
+func _on_battle_action(action: String) -> void:
+	var result: Dictionary = dragon_combat.act(state, action)
+	battle_message = str(result.get("message", ""))
+	if dragon_view.has_method("play_hit") and action == "attack":
+		dragon_view.play_hit()
+	if bool(result.get("won", false)) or bool(result.get("lost", false)):
+		message_label.text = str(result.get("message", ""))
+	_refresh()
+
+func _on_leave_battle() -> void:
+	state.battle_active = false
+	battle_message = "Ты отступил в кузницу. Дракон останется ждать следующей попытки."
+	message_label.text = battle_message
+	_refresh()
+
+func _update_battle_ui() -> void:
+	var in_battle := state.battle_active
+	battle_overlay.visible = in_battle
+	dragon_view.visible = in_battle
+	forge_ui.visible = not in_battle
+	if not in_battle:
+		return
+	battle_title.text = "ЛОГОВО ДРАКОНА  •  РАУНД %d" % state.dragon_round
+	battle_status.text = battle_message
+	battle_intent.text = dragon_combat.intent_text(state)
+	dragon_health_bar.max_value = maxf(1.0, state.dragon_max_hp)
+	dragon_health_bar.value = state.dragon_hp
+	player_health_bar.max_value = 120.0
+	player_health_bar.value = state.player_hp
 
 func _panel_style() -> StyleBox:
 	var style := StyleBoxFlat.new()
@@ -340,6 +465,8 @@ func _refresh() -> void:
 	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
 	if state.contract_complete:
 		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
+	battle_button.disabled = not state.contract_complete or not state.has_blade
+	battle_button.text = "СНОВА ВЫЗВАТЬ ДРАКОНА • ENDLESS" if state.dragon_defeated else "ВОЙТИ В ЛОГОВО ДРАКОНА"
 
 	var offers := merchant.stock(state)
 	var owned_count := merchant.rare_owned_count(state)
@@ -355,4 +482,5 @@ func _refresh() -> void:
 		else:
 			merchant_offer_labels[index].visible = false
 			merchant_buy_buttons[index].visible = false
+	_update_battle_ui()
 	SaveManager.save_game(state)
