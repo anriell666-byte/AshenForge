@@ -57,6 +57,7 @@ var merchant_buy_buttons: Array[Button] = []
 var menu_overlay: PanelContainer
 var settings_overlay: PanelContainer
 var continue_button: Button
+var menu_save_button: Button
 var autosave_toggle: CheckButton
 var autosave_enabled: bool = true
 var game_started: bool = false
@@ -291,6 +292,10 @@ func _build_start_menu() -> void:
 	continue_button = _make_button("ПРОДОЛЖИТЬ")
 	continue_button.pressed.connect(_continue_game)
 	menu_column.add_child(continue_button)
+	menu_save_button = _make_button("СОХРАНИТЬ ПРОГРЕСС")
+	menu_save_button.pressed.connect(_save_now)
+	menu_column.add_child(menu_save_button)
+	menu_save_button.visible = false
 	var new_game_button := _make_button("НОВАЯ ИГРА")
 	new_game_button.pressed.connect(_confirm_new_game)
 	menu_column.add_child(new_game_button)
@@ -350,6 +355,8 @@ func _build_start_menu() -> void:
 func _refresh_menu_buttons() -> void:
 	if continue_button != null:
 		continue_button.disabled = not SaveManager.has_save()
+	if menu_save_button != null:
+		menu_save_button.visible = game_started
 
 func _confirm_new_game() -> void:
 	var dialog := get_node_or_null("NewGameConfirmation") as ConfirmationDialog
@@ -376,10 +383,10 @@ func _continue_game() -> void:
 
 func _open_pause_menu() -> void:
 	if autosave_enabled and game_started:
-		if autosave_enabled and game_started:
 		SaveManager.save_game(state)
 	menu_overlay.visible = true
 	settings_overlay.visible = false
+	_refresh_menu_buttons()
 	forge_ui.visible = false
 	battle_overlay.visible = false
 	dragon_view.visible = false
@@ -687,4 +694,5 @@ func _refresh() -> void:
 			merchant_offer_labels[index].visible = false
 			merchant_buy_buttons[index].visible = false
 	_update_battle_ui()
-	SaveManager.save_game(state)
+	if autosave_enabled and game_started:
+		SaveManager.save_game(state)
