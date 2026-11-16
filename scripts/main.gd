@@ -278,6 +278,8 @@ func _on_strike() -> void:
 	message_label.text = str(result.get("message", ""))
 	if forge_view.has_method("play_strike"):
 		forge_view.play_strike()
+	if str(result.get("message", "")).contains("ПРОБУЖДЕНИЕ!") and forge_view.has_method("play_awakening"):
+		forge_view.play_awakening()
 	_refresh()
 
 func _on_cool() -> void:
@@ -309,6 +311,8 @@ func _on_upgrade() -> void:
 	_refresh()
 
 func _refresh() -> void:
+	if forge_view.has_method("set_blade_visual"):
+		forge_view.set_blade_visual(state.weapon_id, state.weapon_awakened and state.awakened_weapon_id == state.weapon_id)
 	header_label.text = "ASHENFORGE  •  ДЕНЬ %d/%d" % [state.day, state.contract_days]
 	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
 	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
