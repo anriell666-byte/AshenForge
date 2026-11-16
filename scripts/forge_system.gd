@@ -18,7 +18,9 @@ func strike(state: AshenGameState) -> Dictionary:
 		state.frenzy_hits = FRENZY_SAFE_HITS + relics.frenzy_bonus_hits(state)
 		frenzy_this_hit = true
 
-	var luck_bonus := float(state.upgrades.get("luck", 0)) * 0.025
+	var luck_level := int(state.upgrades.get("luck", 0))
+	var luck_bonus := float(luck_level) * 0.025
+	var anvil_level := int(state.upgrades.get("anvil", 0))
 	var destruction_chance := clampf(0.10 * float(weapon.break_risk) - luck_bonus - relics.destruction_reduction(state), 0.02, 0.30)
 	if ability_id == "dragon_hide":
 		destruction_chance *= 0.65
@@ -28,17 +30,17 @@ func strike(state: AshenGameState) -> Dictionary:
 		outcome = "frenzy"
 	elif roll < destruction_chance:
 		outcome = "destruction"
-	elif roll < 0.28 - luck_bonus:
+	elif roll < maxf(0.08, 0.28 - luck_bonus):
 		outcome = "bad"
 	elif roll > (0.82 if ability_id == "glass_precision" else 0.88) - luck_bonus:
 		outcome = "great"
 
 	state.strikes_on_blade += 1
 	state.heat = minf(100.0, state.heat + randf_range(5.0, 11.0) * float(weapon.heat_scale))
-	var power := randf_range(6.0, 11.0) * float(weapon.quality_scale)
+	var power := randf_range(6.0, 11.0) * float(weapon.quality_scale) * (1.0 + float(anvil_level) * 0.06)
 	if ability_id == "spark_dance":
 		power *= 1.15
-	var wear := randf_range(5.0, 9.0) * float(weapon.durability_scale)
+	var wear := randf_range(5.0, 9.0) * float(weapon.durability_scale) * (1.0 - float(anvil_level) * 0.035)
 	if ability_id == "frost_shell":
 		wear *= 0.72
 	var quality_bonus := relics.quality_bonus(state)

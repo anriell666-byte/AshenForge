@@ -44,7 +44,7 @@ var strike_button: Button
 var sell_button: Button
 var tribute_button: Button
 var cool_button: Button
-var upgrade_button: Button
+var upgrade_buttons: Array[Button] = []
 var relic_button: Button
 var weapon_select_button: Button
 var merchant_button: Button
@@ -210,9 +210,17 @@ func _build_screen() -> void:
 	battle_button.pressed.connect(_on_enter_dragon_lair)
 	column.add_child(battle_button)
 
-	upgrade_button = _make_button("Улучшить мехи • 45 золота")
-	upgrade_button.pressed.connect(_on_upgrade)
-	column.add_child(upgrade_button)
+	var upgrade_row := HBoxContainer.new()
+	upgrade_row.add_theme_constant_override("separation", 6)
+	column.add_child(upgrade_row)
+	for upgrade_id in ["bellows", "anvil", "luck"]:
+		var upgrade_button := _make_button("")
+		upgrade_button.custom_minimum_size.y = 46
+		upgrade_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		upgrade_button.add_theme_font_size_override("font_size", 11)
+		upgrade_button.pressed.connect(_on_upgrade.bind(upgrade_id))
+		upgrade_row.add_child(upgrade_button)
+		upgrade_buttons.append(upgrade_button)
 
 	var footer := Label.new()
 	footer.text = "КОНТРАКТ • РЕЛИКВИИ • ТОРГОВЕЦ • ДРАКОН"
@@ -432,8 +440,8 @@ func _on_tribute() -> void:
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
-func _on_upgrade() -> void:
-	var result: Dictionary = economy.buy_upgrade(state, "bellows")
+func _on_upgrade(upgrade_id: String) -> void:
+	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
@@ -463,8 +471,14 @@ func _refresh() -> void:
 	cool_button.disabled = not state.has_blade
 	relic_button.disabled = not state.has_blade
 	tribute_button.disabled = state.gold < state.tribute_goal or state.contract_complete
-	upgrade_button.disabled = state.gold < 45 * (int(state.upgrades.get("bellows", 0)) + 1) or int(state.upgrades.get("bellows", 0)) >= 5
-	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
+	var upgrade_ids := ["bellows", "anvil", "luck"]
+	for index in range(upgrade_buttons.size()):
+		var upgrade_id: String = upgrade_ids[index]
+		var level := int(state.upgrades.get(upgrade_id, 0))
+		var cost := economy.upgrade_cost(state, upgrade_id)
+		upgrade_buttons[index].text = "%s\nУР. %d • %d" % [economy.upgrade_name(upgrade_id), level, cost]
+		upgrade_buttons[index].disabled = state.gold < cost or level >= 5
+		upgrade_buttons[index].tooltip_text = economy.upgrade_description(upgrade_id)
 	if state.contract_complete:
 		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
 	battle_button.disabled = not state.contract_complete or not state.has_blade

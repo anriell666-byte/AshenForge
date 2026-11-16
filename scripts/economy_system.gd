@@ -36,6 +36,24 @@ func pay_tribute(state: AshenGameState) -> Dictionary:
 		return {"ok": true, "contract_complete": true, "message": "Последняя дань принята. Дракон ждёт тебя в своём логове!"}
 	return {"ok": true, "message": "Дань принята. Наступил день %d из %d." % [state.day, state.contract_days]}
 
+func upgrade_cost(state: AshenGameState, upgrade_id: String) -> int:
+	var costs := {"bellows": 45, "anvil": 60, "luck": 75}
+	if not costs.has(upgrade_id):
+		return 0
+	return int(costs[upgrade_id]) * (int(state.upgrades.get(upgrade_id, 0)) + 1)
+
+func upgrade_name(upgrade_id: String) -> String:
+	var names := {"bellows": "МЕХИ", "anvil": "НАКОВАЛЬНЯ", "luck": "УДАЧА"}
+	return str(names.get(upgrade_id, "УЛУЧШЕНИЕ"))
+
+func upgrade_description(upgrade_id: String) -> String:
+	var descriptions := {
+		"bellows": "Усиливает охлаждение клинка на 3 единицы за уровень.",
+		"anvil": "Увеличивает прирост качества на 6% и снижает износ на 3% за уровень.",
+		"luck": "Снижает шанс разрушения и неудачных ударов; повышает шанс великолепного удара."
+	}
+	return str(descriptions.get(upgrade_id, ""))
+
 func buy_upgrade(state: AshenGameState, upgrade_id: String) -> Dictionary:
 	var costs := {"bellows": 45, "anvil": 60, "luck": 75}
 	if not costs.has(upgrade_id):
@@ -43,7 +61,7 @@ func buy_upgrade(state: AshenGameState, upgrade_id: String) -> Dictionary:
 	var level := int(state.upgrades.get(upgrade_id, 0))
 	if level >= 5:
 		return {"ok": false, "message": "Это улучшение уже достигло максимального уровня."}
-	var cost := int(costs[upgrade_id]) * (level + 1)
+	var cost := upgrade_cost(state, upgrade_id)
 	if state.gold < cost:
 		return {"ok": false, "message": "Нужно ещё %d золота." % (cost - state.gold)}
 	state.gold -= cost
