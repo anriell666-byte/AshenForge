@@ -40,6 +40,7 @@ var material_label: Label
 var temper_button: Button
 var scale_upgrade_button: Button
 var void_upgrade_button: Button
+var craft_buttons: Array[Button] = []
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -85,9 +86,14 @@ func _build_screen() -> void:
 	margin.add_theme_constant_override("margin_bottom", 20)
 	add_child(margin)
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(scroll)
 	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_theme_constant_override("separation", 8)
-	margin.add_child(column)
+	scroll.add_child(column)
 
 	header_label = Label.new()
 	header_label.text = "ASHENFORGE"
@@ -231,6 +237,13 @@ func _build_screen() -> void:
 	void_upgrade_button = _make_button("ВПЛЕСТИ ЯДРО ПУСТОТЫ")
 	void_upgrade_button.pressed.connect(_on_void_upgrade)
 	column.add_child(void_upgrade_button)
+	for craft_id in ["ashen_greatsword", "rift_spear", "storm_twins"]:
+		var craft_button := _make_button("КУЗНЕЧНЫЙ РЕЦЕПТ")
+		craft_button.custom_minimum_size.y = 44
+		craft_button.add_theme_font_size_override("font_size", 12)
+		craft_button.pressed.connect(_on_craft_weapon.bind(craft_id))
+		column.add_child(craft_button)
+		craft_buttons.append(craft_button)
 
 	tribute_button = _make_button("Принести дань дракону")
 	tribute_button.pressed.connect(_on_tribute)
@@ -525,7 +538,7 @@ func _update_battle_ui() -> void:
 	forge_ui.visible = not in_battle
 	if not in_battle:
 		return
-	battle_title.text = "%s  •  РАУНД %d" % [dragon_combat.form_name(state), state.dragon_round]
+	battle_title.text = "%s  •  ФАЗА %d  •  РАУНД %d" % [dragon_combat.form_name(state), state.dragon_phase, state.dragon_round]
 	if dragon_view.has_method("set_dragon_form"):
 		dragon_view.set_dragon_form(state.dragon_form)
 	battle_status.text = battle_message
@@ -649,6 +662,11 @@ func _on_void_upgrade() -> void:
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
+func _on_craft_weapon(weapon_id: String) -> void:
+	var result: Dictionary = merchant.craft_weapon(state, weapon_id)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
 func _on_upgrade(upgrade_id: String) -> void:
 	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
 	message_label.text = str(result.get("message", ""))
@@ -676,14 +694,28 @@ func _refresh() -> void:
 	var temper_level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
 	temper_button.text = "ЗАКАЛИТЬ • УР. %d/5 • %d золота + 1 пепел" % [temper_level, economy.temper_cost(state)]
 	temper_button.disabled = not state.has_blade or temper_level >= 5 or int(state.materials.get("dragon_ash", 0)) < 1 or state.gold < economy.temper_cost(state)
-	var armor_level := state.dragon_armor_level
-	var armor_cost := economy.dragon_armor_cost(state)
+	var armor_level: int = int(state.dragon_armor_level)
+	var armor_cost: int = economy.dragon_armor_cost(state)
 	scale_upgrade_button.text = "ЧЕШУЙЧАТЫЙ ДОСПЕХ • УР. %d/5 • %d золота + 1 чешуя" % [armor_level, armor_cost]
 	scale_upgrade_button.disabled = armor_level >= 5 or int(state.materials.get("dragon_scales", 0)) < 1 or state.gold < armor_cost
-	var void_level := state.void_mastery_level
-	var void_cost := economy.void_mastery_cost(state)
+	var void_level: int = int(state.void_mastery_level)
+	var void_cost: int = economy.void_mastery_cost(state)
 	void_upgrade_button.text = "ЗНАНИЕ ПУСТОТЫ • УР. %d/5 • %d золота + 1 ядро" % [void_level, void_cost]
 	void_upgrade_button.disabled = void_level >= 5 or int(state.materials.get("void_cores", 0)) < 1 or state.gold < void_cost
+	var craft_ids := ["ashen_greatsword", "rift_spear", "storm_twins"]
+	var weapon_catalog := WeaponSystem.new()
+	for index in range(craft_buttons.size()):
+		var craft_id: String = craft_ids[index]
+		var recipe: Dictionary = weapon_catalog.get_weapon(craft_id)
+		var owned: bool = state.owned_weapon_ids.has(craft_id)
+		var gold_cost: int = int(recipe.get("recipe_gold", 0))
+		var ash_cost: int = int(recipe.get("recipe_ash", 0))
+		var scale_cost: int = int(recipe.get("recipe_scales", 0))
+		var core_cost: int = int(recipe.get("recipe_cores", 0))
+		var short_name := ["ДВУРУЧНИК ПЕПЛА", "КОПЬЁ РАЗЛОМА", "ПАРНЫЕ КЛИНКИ"][index]
+		craft_buttons[index].text = "%s • %d зол. • П%d Ч%d Я%d" % [short_name, gold_cost, ash_cost, scale_cost, core_cost] if not owned else "РЕЦЕПТ ОСВОЕН: %s" % short_name
+		craft_buttons[index].tooltip_text = str(recipe.get("description", ""))
+		craft_buttons[index].disabled = owned or state.gold < gold_cost or int(state.materials.get("dragon_ash", 0)) < ash_cost or int(state.materials.get("dragon_scales", 0)) < scale_cost or int(state.materials.get("void_cores", 0)) < core_cost
 	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
 	weapon_select_button.text = "СЛЕДУЮЩАЯ ЗАГОТОВКА: %s" % str(selected.name)
 	weapon_select_button.disabled = weapon_system.unlocked(state).size() <= 1

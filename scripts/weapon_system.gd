@@ -40,6 +40,30 @@ const WEAPONS := [
 		"break_risk": 1.35, "value_multiplier": 1.9, "unlock_chapter": 6,
 		"merchant_only": true, "price": 240,
 		"description": "Редкий сплав с огромной ценой и опасным характером."
+	},
+	{
+		"id": "ashen_greatsword", "name": "Двуручник Пепельного стража", "base_value": 74.0,
+		"quality_scale": 0.88, "durability_scale": 1.35, "heat_scale": 0.90,
+		"break_risk": 0.85, "value_multiplier": 1.75, "unlock_chapter": 1,
+		"merchant_only": true, "craft_only": true, "recipe_gold": 180,
+		"recipe_ash": 2, "recipe_scales": 1, "recipe_cores": 0,
+		"description": "Тяжёлый клинок: медленнее растёт качество, зато выдерживает долгую ковку."
+	},
+	{
+		"id": "rift_spear", "name": "Копьё Разлома", "base_value": 82.0,
+		"quality_scale": 1.22, "durability_scale": 0.90, "heat_scale": 0.95,
+		"break_risk": 1.10, "value_multiplier": 1.90, "unlock_chapter": 1,
+		"merchant_only": true, "craft_only": true, "recipe_gold": 220,
+		"recipe_ash": 1, "recipe_scales": 0, "recipe_cores": 1,
+		"description": "Пробивает защиту драконов и раскрывает силу на поздних фазах боя."
+	},
+	{
+		"id": "storm_twins", "name": "Парные клинки Грозы", "base_value": 62.0,
+		"quality_scale": 1.50, "durability_scale": 0.75, "heat_scale": 1.18,
+		"break_risk": 1.25, "value_multiplier": 1.70, "unlock_chapter": 1,
+		"merchant_only": true, "craft_only": true, "recipe_gold": 260,
+		"recipe_ash": 0, "recipe_scales": 1, "recipe_cores": 1,
+		"description": "Быстрые парные клинки: высокая отдача, но требуют точной работы с жаром."
 	}
 ]
 
@@ -49,7 +73,10 @@ const FINAL_FORMS := {
 	"wyrmfang": {"name": "Клык древнего дракона", "ability_id": "dragon_hide", "ability": "Драконья чешуя", "description": "Шанс разрушения клинка снижается на 35%."},
 	"glassfang": {"name": "Зеркальная рапира", "ability_id": "glass_precision", "ability": "Зеркальная точность", "description": "Шанс великолепного удара становится выше."},
 	"frostbite": {"name": "Ледяное жало", "ability_id": "frost_shell", "ability": "Панцирь вечной мерзлоты", "description": "Износ прочности от ударов снижается на 28%."},
-	"bloodiron": {"name": "Кровавый бастард", "ability_id": "blood_price", "ability": "Кровавая цена", "description": "Продажа пробуждённого клинка приносит на 25% больше золота."}
+	"bloodiron": {"name": "Кровавый бастард", "ability_id": "blood_price", "ability": "Кровавая цена", "description": "Продажа пробуждённого клинка приносит на 25% больше золота."},
+	"ashen_greatsword": {"name": "Эгида Пепельного стража", "ability_id": "ashen_guard", "ability": "Пепельная эгида", "description": "Снижает входящий урон в бою с драконом ещё на 15%."},
+	"rift_spear": {"name": "Копьё Последнего разлома", "ability_id": "rift_pierce", "ability": "Пробой разлома", "description": "Наносит на 25% больше урона драконам начиная со второй фазы."},
+	"storm_twins": {"name": "Грозовые близнецы", "ability_id": "storm_combo", "ability": "Шквал молний", "description": "Каждый четвёртый раунд боя наносит двойной дополнительный урон."}
 }
 
 func get_weapon(weapon_id: String) -> Dictionary:

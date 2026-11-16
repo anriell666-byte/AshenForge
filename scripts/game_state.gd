@@ -30,6 +30,8 @@ var dragon_hp: float = 420.0
 var dragon_max_hp: float = 420.0
 var player_hp: float = 120.0
 var dragon_round: int = 1
+var dragon_phase: int = 1
+var dragon_burn_turns: int = 0
 var dragon_intent: String = "claw"
 var dragon_defeated: bool = false
 var dragon_victories: int = 0
@@ -54,7 +56,8 @@ func to_dict() -> Dictionary:
 		"upgrades": upgrades, "relics": relics,
 		"battle_active": battle_active, "dragon_hp": dragon_hp,
 		"dragon_max_hp": dragon_max_hp, "player_hp": player_hp,
-		"dragon_round": dragon_round, "dragon_intent": dragon_intent,
+		"dragon_round": dragon_round, "dragon_phase": dragon_phase,
+		"dragon_burn_turns": dragon_burn_turns, "dragon_intent": dragon_intent,
 		"dragon_defeated": dragon_defeated, "dragon_victories": dragon_victories,
 		"dragon_form": dragon_form, "materials": materials,
 		"weapon_temper_levels": weapon_temper_levels,
@@ -98,6 +101,8 @@ func from_dict(data: Dictionary) -> void:
 	dragon_max_hp = float(data.get("dragon_max_hp", dragon_max_hp))
 	player_hp = float(data.get("player_hp", player_hp))
 	dragon_round = int(data.get("dragon_round", dragon_round))
+	dragon_phase = clampi(int(data.get("dragon_phase", 1)), 1, 3)
+	dragon_burn_turns = clampi(int(data.get("dragon_burn_turns", 0)), 0, 5)
 	dragon_intent = str(data.get("dragon_intent", dragon_intent))
 	dragon_defeated = bool(data.get("dragon_defeated", false))
 	dragon_victories = int(data.get("dragon_victories", 0))
