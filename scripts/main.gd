@@ -46,6 +46,9 @@ var void_upgrade_button: Button
 var craft_buttons: Array[Button] = []
 var item_buttons: Array[Button] = []
 var item_inventory_label: Label
+var wall_panel: PanelContainer
+var wall_slot_buttons: Array[Button] = []
+var hang_button: Button
 var achievement_label: Label
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
@@ -181,6 +184,11 @@ func _build_screen() -> void:
 	weapon_select_button = _make_button("СЛЕДУЮЩАЯ ЗАГОТОВКА")
 	weapon_select_button.pressed.connect(_on_cycle_weapon)
 	column.add_child(weapon_select_button)
+	hang_button = _make_button("ПОВЕСИТЬ КЛИНОК НА СТЕНУ")
+	hang_button.custom_minimum_size.y = 42
+	hang_button.add_theme_font_size_override("font_size", 13)
+	hang_button.pressed.connect(_on_hang_blade)
+	column.add_child(hang_button)
 
 	merchant_button = _make_button("ТОРГОВЕЦ • РЕДКИЕ ЧЕРТЕЖИ")
 	merchant_button.pressed.connect(_on_toggle_merchant)
@@ -262,6 +270,24 @@ func _build_screen() -> void:
 	item_inventory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	item_inventory_label.add_theme_color_override("font_color", Color("#d6c5a8"))
 	column.add_child(item_inventory_label)
+	wall_panel = PanelContainer.new()
+	wall_panel.add_theme_stylebox_override("panel", _panel_style())
+	var wall_column := VBoxContainer.new()
+	wall_column.add_theme_constant_override("separation", 5)
+	wall_panel.add_child(wall_column)
+	var wall_title := Label.new()
+	wall_title.text = "СТЕНА ТРОФЕЕВ • ВЫБЕРИ МЕЧ, ЧТОБЫ СНЯТЬ ЕГО"
+	wall_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wall_title.add_theme_color_override("font_color", Color("#e4c28f"))
+	wall_title.add_theme_font_size_override("font_size", 12)
+	wall_column.add_child(wall_title)
+	for wall_index in range(8):
+		var wall_slot := _make_button("ПУСТОЕ МЕСТО")
+		wall_slot.custom_minimum_size.y = 38
+		wall_slot.add_theme_font_size_override("font_size", 12)
+		wall_slot.pressed.connect(_on_wall_slot.bind(wall_index))
+		wall_column.add_child(wall_slot)
+		wall_slot_buttons.append(wall_slot)
 	achievement_label = Label.new()
 	achievement_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	achievement_label.add_theme_font_size_override("font_size", 11)
@@ -336,6 +362,8 @@ func _build_screen() -> void:
 	for control in craft_buttons:
 		control.get_parent().remove_child(control)
 		workshop_column.add_child(control)
+	wall_panel.get_parent().remove_child(wall_panel)
+	workshop_column.add_child(wall_panel)
 	upgrade_row.get_parent().remove_child(upgrade_row)
 	workshop_column.add_child(upgrade_row)
 
@@ -741,6 +769,50 @@ func _on_cool() -> void:
 	message_label.text = forge.cool(state)
 	_refresh()
 
+func _on_hang_blade() -> void:
+	if not state.has_blade:
+		message_label.text = "На наковальне нет клинка, который можно повесить."
+		return
+	if state.wall_weapons.size() >= 8:
+		message_label.text = "Стена заполнена. Сними один из клинков, чтобы освободить место."
+		return
+	state.wall_weapons.append(_current_blade_snapshot())
+	forge.start_new_blade(state)
+	message_label.text = "Клинок занял своё место на стене. Коллекция пополнилась."
+	_refresh()
+
+func _current_blade_snapshot() -> Dictionary:
+	return {
+		"weapon_id": state.weapon_id,
+		"weapon_name": state.weapon_name,
+		"quality": state.quality,
+		"durability": state.durability,
+		"awakened": state.weapon_awakened and state.awakened_weapon_id == state.weapon_id,
+		"awakened_weapon_id": state.awakened_weapon_id,
+		"temper": int(state.weapon_temper_levels.get(state.weapon_id, 0))
+	}
+
+func _on_wall_slot(index: int) -> void:
+	if index < 0 or index >= state.wall_weapons.size():
+		return
+	var stored: Dictionary = state.wall_weapons[index]
+	if state.has_blade:
+		state.wall_weapons[index] = _current_blade_snapshot()
+	else:
+		state.wall_weapons.remove_at(index)
+	state.has_blade = true
+	state.weapon_id = str(stored.get("weapon_id", "coal_blade"))
+	state.weapon_name = str(stored.get("weapon_name", "Угольный клинок"))
+	state.quality = float(stored.get("quality", 5.0))
+	state.durability = float(stored.get("durability", 100.0))
+	state.weapon_awakened = bool(stored.get("awakened", false))
+	state.awakened_weapon_id = str(stored.get("awakened_weapon_id", ""))
+	state.heat = 25.0
+	state.strikes_on_blade = 0
+	state.last_forge_result = ""
+	message_label.text = "Со стены снят клинок: %s. Текущий клинок обменян." % state.weapon_name
+	_refresh()
+
 func _on_sell() -> void:
 	var result: Dictionary = economy.sell_blade(state)
 	message_label.text = str(result.get("message", ""))
@@ -791,6 +863,21 @@ func _on_upgrade(upgrade_id: String) -> void:
 	_refresh()
 
 func _refresh() -> void:
+	if forge_view.has_method("set_wall_weapons"):
+		forge_view.set_wall_weapons(state.wall_weapons)
+	if hang_button != null:
+		hang_button.disabled = not state.has_blade or state.wall_weapons.size() >= 8
+		hang_button.text = "ПОВЕСИТЬ КЛИНОК • %d/8" % state.wall_weapons.size()
+	for wall_index in range(wall_slot_buttons.size()):
+		var slot_button: Button = wall_slot_buttons[wall_index]
+		if wall_index < state.wall_weapons.size():
+			var trophy: Dictionary = state.wall_weapons[wall_index]
+			var awakened_mark := " ✦" if bool(trophy.get("awakened", false)) else ""
+			slot_button.text = "%s%s • КАЧЕСТВО %d" % [str(trophy.get("weapon_name", "Клинок")), awakened_mark, int(float(trophy.get("quality", 0.0)))]
+			slot_button.disabled = false
+		else:
+			slot_button.text = "ПУСТОЕ МЕСТО"
+			slot_button.disabled = true
 	if forge_view.has_method("set_blade_visual"):
 		forge_view.set_blade_visual(state.weapon_id, state.weapon_awakened and state.awakened_weapon_id == state.weapon_id)
 	if forge_view.has_method("set_forge_state"):

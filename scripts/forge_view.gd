@@ -4,13 +4,27 @@ var hammer_angle: float = 0.0
 var sparks: float = 0.0
 var awakening_flash: float = 0.0
 var aura_phase: float = 0.0
+var flame_phase: float = 0.0
+var camera_yaw: float = 0.0
+var camera_target: float = 0.0
+var drag_origin: Vector2 = Vector2.ZERO
+var drag_active: bool = false
 var current_weapon_id: String = "coal_blade"
 var blade_awakened: bool = false
 var heat_level: float = 28.0
 var quality_level: float = 8.0
 var durability_level: float = 100.0
 var forge_outcome: String = ""
-var flame_phase: float = 0.0
+var wall_weapons: Array = []
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_process(true)
+	set_process_input(true)
+
+func set_wall_weapons(items: Array) -> void:
+	wall_weapons = items.duplicate(true)
+	queue_redraw()
 
 func set_forge_state(heat: float, quality: float, durability: float, outcome: String) -> void:
 	heat_level = clampf(heat, 0.0, 100.0)
@@ -24,105 +38,171 @@ func set_blade_visual(weapon_id: String, awakened: bool) -> void:
 	blade_awakened = awakened
 	queue_redraw()
 
+func rotate_camera(direction: float) -> void:
+	camera_target = clampf(camera_target + direction * 0.28, -0.62, 0.62)
+
 func play_awakening() -> void:
 	awakening_flash = 1.0
 	sparks = 1.0
-	hammer_angle = -0.7
+	hammer_angle = -0.8
 	queue_redraw()
 
 func play_strike() -> void:
-	hammer_angle = -0.45
+	hammer_angle = -0.52
 	sparks = 1.0
 	queue_redraw()
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			drag_origin = event.position
+			drag_active = true
+		else:
+			if drag_active:
+				var delta_x := event.position.x - drag_origin.x
+				if absf(delta_x) > 42.0 and absf(delta_x) > absf(event.position.y - drag_origin.y) * 1.25:
+					if drag_origin.x < 105.0 or drag_origin.x > size.x - 105.0:
+						rotate_camera(-signf(delta_x))
+			drag_active = false
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			drag_origin = event.position
+			drag_active = true
+		else:
+			if drag_active:
+				var delta_mouse := event.position.x - drag_origin.x
+				if absf(delta_mouse) > 42.0 and absf(delta_mouse) > absf(event.position.y - drag_origin.y) * 1.25:
+					if drag_origin.x < 105.0 or drag_origin.x > size.x - 105.0:
+						rotate_camera(-signf(delta_mouse))
+			drag_active = false
+
 func _process(delta: float) -> void:
-	hammer_angle = move_toward(hammer_angle, 0.0, delta * 2.8)
+	hammer_angle = move_toward(hammer_angle, 0.0, delta * 3.2)
 	sparks = move_toward(sparks, 0.0, delta * 1.8)
 	awakening_flash = move_toward(awakening_flash, 0.0, delta * 0.65)
 	aura_phase = fposmod(aura_phase + delta * 2.2, TAU)
 	flame_phase = fposmod(flame_phase + delta * 4.0, TAU)
+	camera_yaw = lerpf(camera_yaw, camera_target, minf(1.0, delta * 5.0))
 	queue_redraw()
 
 func _draw() -> void:
 	var s := size
 	if s.x < 10.0 or s.y < 10.0:
 		s = get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, s), Color("#17131a"))
-	draw_rect(Rect2(0, 0, s.x, s.y * 0.58), Color("#211c25"))
-	for x in range(-40, int(s.x) + 100, 90):
-		draw_line(Vector2(x, 0), Vector2(x - 34, s.y * 0.58), Color("#302833"), 3.0)
-	# Furnace arch and fire
-	draw_circle(Vector2(s.x * 0.5, s.y * 0.43), s.x * 0.235, Color("#39252a"))
-	draw_circle(Vector2(s.x * 0.5, s.y * 0.43), s.x * 0.185, Color("#100e13"))
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(s.x*.39,s.y*.52), Vector2(s.x*.43,s.y*.43), Vector2(s.x*.48,s.y*.50),
-		Vector2(s.x*.53,s.y*.40), Vector2(s.x*.61,s.y*.52), Vector2(s.x*.56,s.y*.57),
-		Vector2(s.x*.43,s.y*.57)
-	]), Color("#f47a27"))
-	draw_circle(Vector2(s.x * 0.5, s.y * 0.50), s.x * 0.045, Color(1.0, 0.72, 0.28, 0.7))
-	var flame_glow: float = 0.5 + 0.5 * sin(flame_phase)
-	var fire_color := Color("#ff6b2b") if heat_level > 65.0 else Color("#e89a45")
-	for flame_index in range(5):
-		var flame_x: float = s.x * (0.405 + float(flame_index) * 0.047)
-		var flame_height: float = s.y * (0.045 + flame_glow * 0.035 + heat_level * 0.00025)
-		draw_colored_polygon(PackedVector2Array([Vector2(flame_x - 7.0, s.y * 0.55), Vector2(flame_x, s.y * 0.55 - flame_height), Vector2(flame_x + 8.0, s.y * 0.55)]), Color(fire_color, 0.55 + flame_glow * 0.3))
-	# Stone anvil
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(s.x*.22,s.y*.69), Vector2(s.x*.78,s.y*.69), Vector2(s.x*.72,s.y*.75),
-		Vector2(s.x*.65,s.y*.78), Vector2(s.x*.35,s.y*.78), Vector2(s.x*.28,s.y*.75)
-	]), Color("#85818b"))
-	draw_rect(Rect2(s.x*.39,s.y*.76,s.x*.22,s.y*.075), Color("#49434e"))
-	draw_rect(Rect2(s.x*.34,s.y*.83,s.x*.32,s.y*.025), Color("#29242d"))
-	# Blade resting on the anvil; each steel family has its own forged tint.
-	var blade_color := Color("#c9d1d3")
-	var edge_color := Color("#f6eee2")
-	match current_weapon_id:
-		"ember_sabre":
-			blade_color = Color("#e9a05b")
-			edge_color = Color("#fff0c4")
-		"wyrmfang":
-			blade_color = Color("#a9b7bd")
-			edge_color = Color("#e8f4f4")
-		"glassfang":
-			blade_color = Color("#a9d9d8")
-			edge_color = Color("#e3ffff")
-		"frostbite":
-			blade_color = Color("#8fc9e8")
-			edge_color = Color("#e1f7ff")
-		"bloodiron":
-			blade_color = Color("#a85c62")
-			edge_color = Color("#ffc0a7")
-	var blade_center := Vector2(s.x*.505, s.y*.665)
-	if blade_awakened:
-		var pulse := 0.5 + 0.5 * sin(aura_phase)
-		var aura_alpha := 0.12 + pulse * 0.13 + awakening_flash * 0.42
-		draw_circle(blade_center, s.x * (0.12 + pulse * 0.025), Color(blade_color, aura_alpha))
-		draw_circle(blade_center, s.x * (0.075 + pulse * 0.018), Color(edge_color, aura_alpha * 0.7))
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(s.x*.35,s.y*.685), Vector2(s.x*.66,s.y*.665), Vector2(s.x*.57,s.y*.645),
-		Vector2(s.x*.43,s.y*.655)
-	]), blade_color)
-	draw_line(Vector2(s.x*.5,s.y*.67), Vector2(s.x*.5,s.y*.65), edge_color, 2.0)
-	if blade_awakened:
-		# Fine glowing runes along the blade, kept large enough to read on a phone.
-		for rune_index in range(3):
-			var rune_x := s.x * (0.445 + float(rune_index) * 0.035)
-			var rune_y := s.y * (0.669 - float(rune_index) * 0.002)
-			draw_line(Vector2(rune_x - 5.0, rune_y), Vector2(rune_x + 5.0, rune_y - 4.0), edge_color, 2.0)
-			draw_circle(Vector2(rune_x, rune_y - 2.0), 1.8, edge_color)
-	# Hammer silhouette
-	var pivot := Vector2(s.x*.67, s.y*.58)
+	var cx := s.x * 0.5
+	draw_rect(Rect2(Vector2.ZERO, s), Color("#100e14"))
+	# Deep stone wall and perspective floor.
+	draw_colored_polygon(PackedVector2Array([Vector2(0,0),Vector2(s.x,0),Vector2(s.x,s.y*0.68),Vector2(0,s.y*0.68)]), Color("#29232d"))
+	for x in range(-80, int(s.x) + 120, 105):
+		draw_line(Vector2(x,0), Vector2(x-42,s.y*0.68), Color("#39303b"), 3.0)
+	for y in range(90, int(s.y*0.65), 100):
+		draw_line(Vector2(0,y), Vector2(s.x,y), Color("#342b37"), 2.0)
+	draw_colored_polygon(PackedVector2Array([Vector2(0,s.y*0.66),Vector2(s.x,s.y*0.66),Vector2(s.x*0.86,s.y),Vector2(s.x*0.14,s.y)]), Color("#19151d"))
+	for i in range(7):
+		var floor_x := s.x * (0.12 + float(i)*0.13)
+		draw_line(Vector2(floor_x,s.y*0.7), Vector2(cx+(floor_x-cx)*1.42,s.y), Color("#302832"), 2.0)
+	# Camera-responsive props: slight yaw creates a diorama/parallax feeling.
+	draw_set_transform(Vector2(cx,s.y*0.42), camera_yaw*0.22, Vector2.ONE)
+	# Furnace, with a deep arch, rim and animated flame.
+	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.31,-s.y*.01),Vector2(s.x*.31,-s.y*.01),Vector2(s.x*.27,s.y*.23),Vector2(-s.x*.27,s.y*.23)]), Color("#51404a"))
+	draw_circle(Vector2(0,s.y*.105), s.x*.205, Color("#171219"))
+	draw_circle(Vector2(0,s.y*.105), s.x*.165, Color("#09080c"))
+	var glow := 0.5 + 0.5*sin(flame_phase)
+	draw_circle(Vector2(0,s.y*.12), s.x*(.12+glow*.018), Color(1.0,.25,.07,.18+glow*.12))
+	for i in range(5):
+		var fx := -s.x*.105 + float(i)*s.x*.052
+		var fh := s.y*(.065+glow*.025+heat_level*.00018)
+		draw_colored_polygon(PackedVector2Array([Vector2(fx-7,s.y*.19),Vector2(fx,s.y*.19-fh),Vector2(fx+8,s.y*.19)]), Color("#ff7b2c") if heat_level>60.0 else Color("#e6a04a"))
+	# Wall rack with dimensional beams and eight collectible weapon hooks.
+	draw_rect(Rect2(-s.x*.39,-s.y*.29,s.x*.78,s.y*.018), Color("#5d3c31"))
+	draw_rect(Rect2(-s.x*.39,-s.y*.265,s.x*.78,s.y*.014), Color("#2d2023"))
+	var wall_count := mini(wall_weapons.size(), 8)
+	for i in range(8):
+		var wx := -s.x*.32 + float(i%4)*s.x*.213
+		var wy := -s.y*.205 if i<4 else -s.y*.055
+		draw_circle(Vector2(wx,wy), 5.0, Color("#c18a52"))
+		if i < wall_count:
+			var trophy: Dictionary = wall_weapons[i]
+			_draw_weapon(Vector2(wx,wy+ s.y*.055), s.y*.105, str(trophy.get("weapon_id","coal_blade")), float(trophy.get("quality",0.0)), bool(trophy.get("awakened",false)), false)
+		else:
+			draw_line(Vector2(wx,wy+8),Vector2(wx,wy+25),Color("#75523d"),3.0)
+	# Anvil pedestal and anvil top, with top/side faces to sell the volume.
+	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.29,s.y*.285),Vector2(s.x*.29,s.y*.285),Vector2(s.x*.24,s.y*.37),Vector2(-s.x*.24,s.y*.37)]), Color("#51434a"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.36,s.y*.255),Vector2(s.x*.36,s.y*.255),Vector2(s.x*.29,s.y*.305),Vector2(-s.x*.29,s.y*.305)]), Color("#a3a0a4"))
+	draw_line(Vector2(-s.x*.34,s.y*.26),Vector2(s.x*.34,s.y*.26),Color("#e2d6ca"),3.0)
+	# Active blade lies across the anvil; its silhouette evolves with quality.
+	_draw_weapon(Vector2(0,s.y*.247), s.x*.36, current_weapon_id, quality_level, blade_awakened, true)
+	# Hammer with a heavy handle and metal head.
+	var pivot := Vector2(s.x*.255,s.y*.16)
 	draw_set_transform(pivot, hammer_angle, Vector2.ONE)
-	draw_rect(Rect2(-s.x*.018, -s.y*.20, s.x*.036, s.y*.22), Color("#79533d"))
-	draw_rect(Rect2(-s.x*.085, -s.y*.23, s.x*.17, s.y*.065), Color("#aaa3a8"))
-	draw_rect(Rect2(-s.x*.085, -s.y*.23, s.x*.17, s.y*.018), Color("#d8c8b5"))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_rect(Rect2(-s.x*.014,-s.y*.19,s.x*.028,s.y*.21), Color("#80583d"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.09,-s.y*.22),Vector2(s.x*.09,-s.y*.22),Vector2(s.x*.075,-s.y*.15),Vector2(-s.x*.075,-s.y*.15)]), Color("#aaa4a9"))
+	draw_line(Vector2(-s.x*.08,-s.y*.215),Vector2(s.x*.08,-s.y*.215),Color("#e4d8cb"),3.0)
+	draw_set_transform(Vector2.ZERO,0.0,Vector2.ONE)
+	# Floating sparks and heat haze.
 	if sparks > 0.0:
-		for i in range(12 if awakening_flash > 0.0 else 8):
-			var a := float(i) * TAU / float(12 if awakening_flash > 0.0 else 8)
-			var radius := 22.0 + (1.0-sparks)*38.0
-			var p := Vector2(s.x*.5,s.y*.65) + Vector2(cos(a),sin(a)) * radius
-			var spark_color := Color("#ffb34f", sparks)
-			if awakening_flash > 0.0:
-				spark_color = Color("#fff0b5", minf(1.0, sparks + awakening_flash * 0.3))
-			draw_circle(p, (2.5 + awakening_flash * 2.0) * sparks, spark_color)
+		for i in range(14):
+			var a := float(i)*TAU/14.0
+			var radius := 18.0+(1.0-sparks)*58.0
+			var p := Vector2(cx,s.y*.665)+Vector2(cos(a),sin(a))*radius
+			draw_circle(p, (2.0+awakening_flash*2.5)*sparks, Color("#ffd18a") if awakening_flash>0.0 else Color("#ff9a43"))
+	# Rotation hint.
+	draw_string(ThemeDB.fallback_font, Vector2(18,s.y*.49), "↶  ПОВОРОТ КУЗНИЦЫ", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.88,0.72,0.56,0.72))
+	draw_set_transform(Vector2.ZERO,0.0,Vector2.ONE)
+
+func _draw_weapon(center: Vector2, length: float, weapon_id: String, quality: float, awakened: bool, horizontal: bool) -> void:
+	var blade_color := Color("#b8c3c9")
+	var edge_color := Color("#f4eee3")
+	var accent := Color("#d7a978")
+	match weapon_id:
+		"ember_sabre":
+			blade_color=Color("#d99a5c"); accent=Color("#f2a14a")
+		"wyrmfang":
+			blade_color=Color("#9daeb6"); accent=Color("#65b6a4")
+		"glassfang":
+			blade_color=Color("#a8d9d6"); accent=Color("#8ff4ed")
+		"frostbite":
+			blade_color=Color("#83c4e5"); accent=Color("#c6efff")
+		"bloodiron":
+			blade_color=Color("#a85860"); accent=Color("#e37b78")
+		"ashen_greatsword":
+			blade_color=Color("#77717f"); accent=Color("#f18b4b")
+		"rift_spear":
+			blade_color=Color("#8374a9"); accent=Color("#c3a6ff")
+		"storm_twins":
+			blade_color=Color("#a9c9d2"); accent=Color("#f3df9a")
+	var tier := 0
+	if quality >= 30.0: tier=1
+	if quality >= 60.0: tier=2
+	if quality >= 85.0: tier=3
+	var angle := PI*0.5 if horizontal else 0.0
+	draw_set_transform(center,angle,Vector2.ONE)
+	var blade_len := length*(0.62+float(tier)*0.09)
+	var half_width := length*(0.055+float(tier)*0.009)
+	if awakened:
+		draw_circle(Vector2(0,-blade_len*.42),length*.22,Color(accent,0.15+0.08*sin(aura_phase)))
+	var blade_points := PackedVector2Array([
+		Vector2(-half_width,0),Vector2(half_width,0),Vector2(half_width*.78,-blade_len*.72),
+		Vector2(half_width*.48,-blade_len*.91),Vector2(0,-blade_len),Vector2(-half_width*.48,-blade_len*.91),
+		Vector2(-half_width*.78,-blade_len*.72)
+	])
+	draw_colored_polygon(blade_points,blade_color)
+	draw_line(Vector2(0,-4),Vector2(0,-blade_len*.96),edge_color, maxf(1.5,length*.018))
+	# Quality tiers add fuller bevels, grooves and a visible spine.
+	if tier >= 1:
+		draw_line(Vector2(-half_width*.58,-blade_len*.22),Vector2(-half_width*.35,-blade_len*.78),Color("#e8d9bd"),2.0)
+	if tier >= 2:
+		draw_line(Vector2(half_width*.48,-blade_len*.18),Vector2(half_width*.3,-blade_len*.78),accent,2.0)
+		for rune in range(3):
+			var ry := -blade_len*(.36+float(rune)*.15)
+			draw_line(Vector2(-half_width*.28,ry),Vector2(half_width*.28,ry-4),accent,2.0)
+	# Guard and pommel become more elaborate with mastery.
+	draw_rect(Rect2(-length*.13,1,length*.26,length*.055),Color("#5c4039"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-length*.19,1),Vector2(-length*.12,-length*.025),Vector2(length*.12,-length*.025),Vector2(length*.19,1),Vector2(length*.12,length*.035),Vector2(-length*.12,length*.035)]),accent if tier>=2 else Color("#9a795e"))
+	draw_rect(Rect2(-length*.035,length*.055,length*.07,length*.18),Color("#49343a"))
+	draw_circle(Vector2(0,length*.25),length*.055,accent if awakened else Color("#8b6c59"))
+	if tier >= 3 or awakened:
+		for rune in range(4):
+			var ry2 := -blade_len*(.28+float(rune)*.14)
+			draw_circle(Vector2(0,ry2),length*.025,Color("#fff0bd") if awakened else accent)
+	draw_set_transform(Vector2.ZERO,0.0,Vector2.ONE)

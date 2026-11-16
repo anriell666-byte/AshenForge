@@ -42,6 +42,7 @@ var dragon_armor_level: int = 0
 var void_mastery_level: int = 0
 var battle_items: Dictionary = {"healing_flask": 1, "dragon_bomb": 0, "ward_rune": 0}
 var claimed_achievement_ids: Array = []
+var wall_weapons: Array = []
 
 func to_dict() -> Dictionary:
 	return {
@@ -66,7 +67,8 @@ func to_dict() -> Dictionary:
 		"dragon_armor_level": dragon_armor_level,
 		"void_mastery_level": void_mastery_level,
 		"battle_items": battle_items,
-		"claimed_achievement_ids": claimed_achievement_ids
+		"claimed_achievement_ids": claimed_achievement_ids,
+		"wall_weapons": wall_weapons
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -125,3 +127,6 @@ func from_dict(data: Dictionary) -> void:
 	var saved_achievements = data.get("claimed_achievement_ids", [])
 	if saved_achievements is Array:
 		claimed_achievement_ids = saved_achievements.duplicate()
+	var saved_wall = data.get("wall_weapons", [])
+	if saved_wall is Array:
+		wall_weapons = saved_wall.duplicate(true)
