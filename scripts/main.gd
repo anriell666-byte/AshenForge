@@ -36,6 +36,8 @@ var progression_label: Label
 var ability_label: Label
 var frenzy_label: Label
 var relic_label: Label
+var material_label: Label
+var temper_button: Button
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -135,6 +137,12 @@ func _build_screen() -> void:
 	relic_label.add_theme_font_size_override("font_size", 12)
 	relic_label.add_theme_color_override("font_color", Color("#c6a6e0"))
 	panel_column.add_child(relic_label)
+	material_label = Label.new()
+	material_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	material_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	material_label.add_theme_font_size_override("font_size", 12)
+	material_label.add_theme_color_override("font_color", Color("#d6a978"))
+	panel_column.add_child(material_label)
 
 	message_label = Label.new()
 	message_label.text = "Куй клинок. Десятый удар зарядит шквал FRENZY."
@@ -201,6 +209,9 @@ func _build_screen() -> void:
 	relic_button = _make_button("Пожертвовать клинок машине реликвий")
 	relic_button.pressed.connect(_on_relic)
 	column.add_child(relic_button)
+	temper_button = _make_button("ЗАКАЛИТЬ КЛИНОК")
+	temper_button.pressed.connect(_on_temper)
+	column.add_child(temper_button)
 
 	tribute_button = _make_button("Принести дань дракону")
 	tribute_button.pressed.connect(_on_tribute)
@@ -440,6 +451,11 @@ func _on_tribute() -> void:
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
+func _on_temper() -> void:
+	var result: Dictionary = economy.temper_weapon(state)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
 func _on_upgrade(upgrade_id: String) -> void:
 	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
 	message_label.text = str(result.get("message", ""))
@@ -463,6 +479,10 @@ func _refresh() -> void:
 	quality_bar.value = state.quality
 	durability_bar.value = state.durability
 	relic_label.text = relic_machine.summary(state)
+	material_label.text = "МАТЕРИАЛЫ: Пепел %d  •  Чешуя %d  •  Ядра пустоты %d" % [int(state.materials.get("dragon_ash", 0)), int(state.materials.get("dragon_scales", 0)), int(state.materials.get("void_cores", 0))]
+	var temper_level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
+	temper_button.text = "ЗАКАЛИТЬ • УР. %d/5 • %d золота + 1 пепел" % [temper_level, economy.temper_cost(state)]
+	temper_button.disabled = not state.has_blade or temper_level >= 5 or int(state.materials.get("dragon_ash", 0)) < 1 or state.gold < economy.temper_cost(state)
 	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
 	weapon_select_button.text = "СЛЕДУЮЩАЯ ЗАГОТОВКА: %s" % str(selected.name)
 	weapon_select_button.disabled = weapon_system.unlocked(state).size() <= 1

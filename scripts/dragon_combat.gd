@@ -34,6 +34,7 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
 		damage = 16.0 + float(weapon.base_value) * 0.32 + state.quality * 0.42
 		damage *= float(weapon.value_multiplier) * (1.0 + float(state.relics.get("dragon_tooth", 0)) * 0.08)
+		damage *= 1.0 + float(state.weapon_temper_levels.get(state.weapon_id, 0)) * 0.10
 		if ability == "spark_dance":
 			damage *= 1.18
 		elif ability == "ember_echo":
@@ -55,8 +56,16 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		state.dragon_defeated = true
 		state.dragon_victories += 1
 		state.gold += reward
+		state.materials["dragon_ash"] = int(state.materials.get("dragon_ash", 0)) + 1
+		var material_text := "Пепел дракона ×1"
+		if state.dragon_form == 1:
+			state.materials["dragon_scales"] = int(state.materials.get("dragon_scales", 0)) + 1
+			material_text += ", чешуя дракона ×1"
+		elif state.dragon_form == 2:
+			state.materials["void_cores"] = int(state.materials.get("void_cores", 0)) + 1
+			material_text += ", ядро пустоты ×1"
 		state.chapter += 1
-		return {"ok": true, "won": true, "damage": damage, "message": "%s ПОВЕРЖЕН! Сокровища логова: +%d золота. Побед в охоте: %d. Следующий противник будет сильнее." % [form_name(state), reward, state.dragon_victories]}
+		return {"ok": true, "won": true, "damage": damage, "message": "%s ПОВЕРЖЕН! +%d золота. Добыча: %s. Побед в охоте: %d." % [form_name(state), reward, material_text, state.dragon_victories]}
 
 	var incoming := 0.0
 	var avoided := false

@@ -7,8 +7,9 @@ func blade_value(state: AshenGameState) -> int:
 	var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
 	var base := float(weapon.base_value) + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5
 	var synergy := relics.synergy_bonus(state)
+	var temper_bonus := 1.0 + float(state.weapon_temper_levels.get(state.weapon_id, 0)) * 0.08
 	var final_form_bonus := 1.25 if state.weapon_awakened and state.awakened_weapon_id == state.weapon_id and weapons.active_ability_id(state) == "blood_price" else 1.0
-	return maxi(1, int(base * float(weapon.value_multiplier) * relics.sale_multiplier(state) * (1.0 + synergy) * final_form_bonus))
+	return maxi(1, int(base * float(weapon.value_multiplier) * relics.sale_multiplier(state) * (1.0 + synergy) * final_form_bonus * temper_bonus))
 
 func sell_blade(state: AshenGameState) -> Dictionary:
 	if not state.has_blade:
@@ -67,3 +68,24 @@ func buy_upgrade(state: AshenGameState, upgrade_id: String) -> Dictionary:
 	state.gold -= cost
 	state.upgrades[upgrade_id] = level + 1
 	return {"ok": true, "message": "Улучшение установлено: уровень %d." % (level + 1)}
+
+func temper_cost(state: AshenGameState) -> int:
+	var level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
+	return 100 * (level + 1)
+
+func temper_weapon(state: AshenGameState) -> Dictionary:
+	if not state.has_blade:
+		return {"ok": false, "message": "Для закалки нужен клинок в кузнице."}
+	var level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
+	if level >= 5:
+		return {"ok": false, "message": "Этот клинок достиг предела закалки."}
+	var cost := temper_cost(state)
+	var ash := int(state.materials.get("dragon_ash", 0))
+	if ash < 1:
+		return {"ok": false, "message": "Нужен пепел дракона. Победи дракона, чтобы получить его."}
+	if state.gold < cost:
+		return {"ok": false, "message": "Для закалки нужно ещё %d золота." % (cost - state.gold)}
+	state.gold -= cost
+	state.materials["dragon_ash"] = ash - 1
+	state.weapon_temper_levels[state.weapon_id] = level + 1
+	return {"ok": true, "message": "%s закалён до уровня %d: урон в бою +10%%, цена продажи +8%% за уровень." % [state.weapon_name, level + 1]}

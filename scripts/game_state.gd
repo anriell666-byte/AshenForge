@@ -34,6 +34,8 @@ var dragon_intent: String = "claw"
 var dragon_defeated: bool = false
 var dragon_victories: int = 0
 var dragon_form: int = 0
+var materials: Dictionary = {"dragon_ash": 0, "dragon_scales": 0, "void_cores": 0}
+var weapon_temper_levels: Dictionary = {}
 
 func to_dict() -> Dictionary:
 	return {
@@ -52,7 +54,8 @@ func to_dict() -> Dictionary:
 		"dragon_max_hp": dragon_max_hp, "player_hp": player_hp,
 		"dragon_round": dragon_round, "dragon_intent": dragon_intent,
 		"dragon_defeated": dragon_defeated, "dragon_victories": dragon_victories,
-		"dragon_form": dragon_form
+		"dragon_form": dragon_form, "materials": materials,
+		"weapon_temper_levels": weapon_temper_levels
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -95,3 +98,9 @@ func from_dict(data: Dictionary) -> void:
 	dragon_defeated = bool(data.get("dragon_defeated", false))
 	dragon_victories = int(data.get("dragon_victories", 0))
 	dragon_form = int(data.get("dragon_form", 0))
+	var saved_materials = data.get("materials", materials)
+	if saved_materials is Dictionary:
+		materials = saved_materials
+	var saved_temper = data.get("weapon_temper_levels", weapon_temper_levels)
+	if saved_temper is Dictionary:
+		weapon_temper_levels = saved_temper
