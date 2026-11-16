@@ -7,7 +7,8 @@ func blade_value(state: AshenGameState) -> int:
 	var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
 	var base := float(weapon.base_value) + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5
 	var synergy := relics.synergy_bonus(state)
-	return maxi(1, int(base * float(weapon.value_multiplier) * relics.sale_multiplier(state) * (1.0 + synergy)))
+	var final_form_bonus := 1.25 if state.weapon_awakened and state.awakened_weapon_id == state.weapon_id and weapons.active_ability_id(state) == "blood_price" else 1.0
+	return maxi(1, int(base * float(weapon.value_multiplier) * relics.sale_multiplier(state) * (1.0 + synergy) * final_form_bonus))
 
 func sell_blade(state: AshenGameState) -> Dictionary:
 	if not state.has_blade:

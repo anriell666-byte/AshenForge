@@ -15,6 +15,8 @@ var weapon_name: String = "Угольный клинок"
 var weapon_id: String = "coal_blade"
 var selected_weapon_id: String = "coal_blade"
 var owned_weapon_ids: Array = ["coal_blade"]
+var weapon_awakened: bool = false
+var awakened_weapon_id: String = ""
 var best_sale: int = 0
 var total_blades: int = 0
 var strikes_on_blade: int = 0
@@ -32,6 +34,7 @@ func to_dict() -> Dictionary:
 		"durability": durability, "has_blade": has_blade,
 		"weapon_name": weapon_name, "weapon_id": weapon_id,
 		"selected_weapon_id": selected_weapon_id, "owned_weapon_ids": owned_weapon_ids,
+		"weapon_awakened": weapon_awakened, "awakened_weapon_id": awakened_weapon_id,
 		"best_sale": best_sale, "total_blades": total_blades,
 		"strikes_on_blade": strikes_on_blade, "frenzy_ready": frenzy_ready,
 		"frenzy_hits": frenzy_hits, "last_forge_result": last_forge_result,
@@ -55,6 +58,8 @@ func from_dict(data: Dictionary) -> void:
 	var saved_owned = data.get("owned_weapon_ids", ["coal_blade"])
 	if saved_owned is Array:
 		owned_weapon_ids = saved_owned.duplicate()
+	weapon_awakened = bool(data.get("weapon_awakened", false))
+	awakened_weapon_id = str(data.get("awakened_weapon_id", ""))
 	best_sale = int(data.get("best_sale", best_sale))
 	total_blades = int(data.get("total_blades", total_blades))
 	strikes_on_blade = int(data.get("strikes_on_blade", strikes_on_blade))

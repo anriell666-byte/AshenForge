@@ -20,6 +20,7 @@ var header_label: Label
 var weapon_label: Label
 var stats_label: Label
 var progression_label: Label
+var ability_label: Label
 var frenzy_label: Label
 var relic_label: Label
 var heat_bar: ProgressBar
@@ -96,6 +97,13 @@ func _build_screen() -> void:
 	progression_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	progression_label.add_theme_color_override("font_color", Color("#d7c18e"))
 	panel_column.add_child(progression_label)
+
+	ability_label = Label.new()
+	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ability_label.add_theme_font_size_override("font_size", 12)
+	ability_label.add_theme_color_override("font_color", Color("#d7c18e"))
+	panel_column.add_child(ability_label)
 
 	frenzy_label = Label.new()
 	frenzy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -305,6 +313,7 @@ func _refresh() -> void:
 	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
 	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
 	progression_label.text = "Удары по клинку: %d/%d     Глава: %d" % [state.strikes_on_blade, forge.STRIKES_FOR_FRENZY, state.chapter]
+	ability_label.text = weapon_system.final_form_status(state)
 	if state.frenzy_hits > 0:
 		frenzy_label.text = "FRENZY АКТИВЕН • безопасных ударов: %d" % state.frenzy_hits
 	elif state.frenzy_ready:
@@ -329,10 +338,7 @@ func _refresh() -> void:
 		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
 
 	var offers := merchant.stock(state)
-	var owned_count := 0
-	for offer in merchant.weapons.WEAPONS:
-		if bool(offer.get("merchant_only", false)) and state.owned_weapon_ids.has(str(offer.id)):
-			owned_count += 1
+	var owned_count := merchant.rare_owned_count(state)
 	merchant_status.text = "Золото: %d • редких чертежей собрано: %d/3" % [state.gold, owned_count]
 	for index in range(merchant_offer_labels.size()):
 		if index < offers.size():

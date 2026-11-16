@@ -15,6 +15,13 @@ func stock(state: AshenGameState) -> Array:
 		offers.append(weapon)
 	return offers
 
+func rare_owned_count(state: AshenGameState) -> int:
+	var total := 0
+	for weapon in WeaponSystem.WEAPONS:
+		if bool(weapon.get("merchant_only", false)) and state.owned_weapon_ids.has(str(weapon.id)):
+			total += 1
+	return total
+
 func buy_weapon(state: AshenGameState, weapon_id: String) -> Dictionary:
 	var weapon: Dictionary = weapons.get_weapon(weapon_id)
 	if not bool(weapon.get("merchant_only", false)):

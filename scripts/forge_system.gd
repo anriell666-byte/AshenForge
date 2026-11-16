@@ -11,6 +11,7 @@ func strike(state: AshenGameState) -> Dictionary:
 	var relics = preload("res://scripts/relic_system.gd").new()
 	var weapons = preload("res://scripts/weapon_system.gd").new()
 	var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
+	var ability_id := weapons.active_ability_id(state)
 	var frenzy_this_hit := state.frenzy_hits > 0
 	if state.frenzy_ready and not frenzy_this_hit:
 		state.frenzy_ready = false
@@ -19,6 +20,8 @@ func strike(state: AshenGameState) -> Dictionary:
 
 	var luck_bonus := float(state.upgrades.get("luck", 0)) * 0.025
 	var destruction_chance := clampf(0.10 * float(weapon.break_risk) - luck_bonus - relics.destruction_reduction(state), 0.02, 0.30)
+	if ability_id == "dragon_hide":
+		destruction_chance *= 0.65
 	var roll := randf()
 	var outcome := "good"
 	if frenzy_this_hit:
@@ -27,14 +30,20 @@ func strike(state: AshenGameState) -> Dictionary:
 		outcome = "destruction"
 	elif roll < 0.28 - luck_bonus:
 		outcome = "bad"
-	elif roll > 0.88 - luck_bonus:
+	elif roll > (0.82 if ability_id == "glass_precision" else 0.88) - luck_bonus:
 		outcome = "great"
 
 	state.strikes_on_blade += 1
 	state.heat = minf(100.0, state.heat + randf_range(5.0, 11.0) * float(weapon.heat_scale))
 	var power := randf_range(6.0, 11.0) * float(weapon.quality_scale)
+	if ability_id == "spark_dance":
+		power *= 1.15
 	var wear := randf_range(5.0, 9.0) * float(weapon.durability_scale)
+	if ability_id == "frost_shell":
+		wear *= 0.72
 	var quality_bonus := relics.quality_bonus(state)
+	if ability_id == "ember_echo":
+		quality_bonus += 2.0
 	if _has_synergy(state):
 		quality_bonus += 0.75
 	var message := ""
@@ -61,6 +70,11 @@ func strike(state: AshenGameState) -> Dictionary:
 			state.quality = minf(100.0, state.quality + power + quality_bonus)
 			state.durability = maxf(1.0, state.durability - wear)
 			message = "Удачный удар. Качество растёт."
+
+	if state.has_blade:
+		var awakening: Dictionary = weapons.try_awaken(state)
+		if bool(awakening.get("ok", false)):
+			message += " " + str(awakening.message)
 
 	if state.has_blade and state.strikes_on_blade >= STRIKES_FOR_FRENZY and state.frenzy_hits == 0:
 		state.frenzy_ready = true
@@ -94,4 +108,6 @@ func start_new_blade(state: AshenGameState) -> void:
 	state.strikes_on_blade = 0
 	state.frenzy_ready = false
 	state.frenzy_hits = 0
+	state.weapon_awakened = false
+	state.awakened_weapon_id = ""
 	state.last_forge_result = ""

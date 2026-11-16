@@ -43,6 +43,15 @@ const WEAPONS := [
 	}
 ]
 
+const FINAL_FORMS := {
+	"coal_blade": {"name": "Пепельный клинок", "ability_id": "ember_echo", "ability": "Эхо углей", "description": "Каждый удар после пробуждения дополнительно укрепляет качество клинка."},
+	"ember_sabre": {"name": "Сабля солнечных искр", "ability_id": "spark_dance", "ability": "Танец искр", "description": "Качество от каждого удара увеличивается на 15%."},
+	"wyrmfang": {"name": "Клык древнего дракона", "ability_id": "dragon_hide", "ability": "Драконья чешуя", "description": "Шанс разрушения клинка снижается на 35%."},
+	"glassfang": {"name": "Зеркальная рапира", "ability_id": "glass_precision", "ability": "Зеркальная точность", "description": "Шанс великолепного удара становится выше."},
+	"frostbite": {"name": "Ледяное жало", "ability_id": "frost_shell", "ability": "Панцирь вечной мерзлоты", "description": "Износ прочности от ударов снижается на 28%."},
+	"bloodiron": {"name": "Кровавый бастард", "ability_id": "blood_price", "ability": "Кровавая цена", "description": "Продажа пробуждённого клинка приносит на 25% больше золота."}
+}
+
 func get_weapon(weapon_id: String) -> Dictionary:
 	for weapon in WEAPONS:
 		if str(weapon.id) == weapon_id:
@@ -61,6 +70,36 @@ func unlocked(state: AshenGameState) -> Array:
 		if available:
 			result.append(weapon)
 	return result
+
+func final_form(weapon_id: String) -> Dictionary:
+	return FINAL_FORMS.get(weapon_id, FINAL_FORMS["coal_blade"])
+
+func active_ability_id(state: AshenGameState) -> String:
+	if state.weapon_awakened and state.awakened_weapon_id == state.weapon_id:
+		return str(final_form(state.weapon_id).ability_id)
+	return ""
+
+func try_awaken(state: AshenGameState) -> Dictionary:
+	if not state.has_blade or state.weapon_awakened or state.quality < 85.0:
+		return {"ok": false}
+	state.weapon_awakened = true
+	state.awakened_weapon_id = state.weapon_id
+	var form := final_form(state.weapon_id)
+	return {
+		"ok": true,
+		"name": str(form.name),
+		"ability": str(form.ability),
+		"description": str(form.description),
+		"message": "ПРОБУЖДЕНИЕ! %s обрёл финальную форму: «%s». Способность «%s»: %s" % [state.weapon_name, str(form.name), str(form.ability), str(form.description)]
+	}
+
+func final_form_status(state: AshenGameState) -> String:
+	if not state.has_blade:
+		return "ФИНАЛЬНАЯ ФОРМА: появится вместе с новой заготовкой"
+	if state.weapon_awakened and state.awakened_weapon_id == state.weapon_id:
+		var form := final_form(state.weapon_id)
+		return "✦ %s • %s\n%s" % [str(form.name), str(form.ability), str(form.description)]
+	return "ПРОБУЖДЕНИЕ: %.0f/85 качества" % minf(85.0, state.quality)
 
 func next_weapon_id(state: AshenGameState, current_id: String) -> String:
 	var available := unlocked(state)
