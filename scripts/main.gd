@@ -323,7 +323,9 @@ func _update_battle_ui() -> void:
 	forge_ui.visible = not in_battle
 	if not in_battle:
 		return
-	battle_title.text = "ЛОГОВО ДРАКОНА  •  РАУНД %d" % state.dragon_round
+	battle_title.text = "%s  •  РАУНД %d" % [dragon_combat.form_name(state), state.dragon_round]
+	if dragon_view.has_method("set_dragon_form"):
+		dragon_view.set_dragon_form(state.dragon_form)
 	battle_status.text = battle_message
 	battle_intent.text = dragon_combat.intent_text(state)
 	dragon_health_bar.max_value = maxf(1.0, state.dragon_max_hp)
@@ -441,7 +443,7 @@ func _refresh() -> void:
 	header_label.text = "ASHENFORGE  •  ДЕНЬ %d/%d" % [state.day, state.contract_days]
 	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
 	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
-	progression_label.text = "Удары по клинку: %d/%d     Глава: %d" % [state.strikes_on_blade, forge.STRIKES_FOR_FRENZY, state.chapter]
+	progression_label.text = "Удары: %d/%d   Глава: %d   Победы над драконами: %d" % [state.strikes_on_blade, forge.STRIKES_FOR_FRENZY, state.chapter, state.dragon_victories]
 	ability_label.text = weapon_system.final_form_status(state)
 	if state.frenzy_hits > 0:
 		frenzy_label.text = "FRENZY АКТИВЕН • безопасных ударов: %d" % state.frenzy_hits
@@ -466,7 +468,7 @@ func _refresh() -> void:
 	if state.contract_complete:
 		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
 	battle_button.disabled = not state.contract_complete or not state.has_blade
-	battle_button.text = "СНОВА ВЫЗВАТЬ ДРАКОНА • ENDLESS" if state.dragon_defeated else "ВОЙТИ В ЛОГОВО ДРАКОНА"
+	battle_button.text = "НОВАЯ ОХОТА • %s" % dragon_combat.FORM_NAMES[state.dragon_victories % dragon_combat.FORM_NAMES.size()] if state.dragon_defeated else "ВОЙТИ В ЛОГОВО ДРАКОНА"
 
 	var offers := merchant.stock(state)
 	var owned_count := merchant.rare_owned_count(state)

@@ -3,18 +3,24 @@ class_name AshenDragonCombat
 
 const WeaponSystem = preload("res://scripts/weapon_system.gd")
 
+const FORM_NAMES := ["ПЕПЕЛЬНЫЙ ДРАКОН", "ПЛАМЕННЫЙ ТИРАН", "ПОЖИРАТЕЛЬ ПУСТОТЫ"]
+
+func form_name(state: AshenGameState) -> String:
+	return FORM_NAMES[clampi(state.dragon_form, 0, FORM_NAMES.size() - 1)]
+
 func begin(state: AshenGameState) -> Dictionary:
 	if not state.contract_complete:
 		return {"ok": false, "message": "Сначала выполни контракт дани. Дракон ещё не открыл врата логова."}
 	if not state.has_blade:
 		return {"ok": false, "message": "Без клинка в логово не войти. Возьми новую заготовку."}
+	state.dragon_form = state.dragon_victories % FORM_NAMES.size()
 	state.battle_active = true
-	state.dragon_hp = 420.0 + max(0, state.chapter - 6) * 45.0
+	state.dragon_hp = 420.0 + max(0, state.chapter - 6) * 45.0 + state.dragon_victories * 35.0
 	state.dragon_max_hp = state.dragon_hp
 	state.player_hp = 120.0
 	state.dragon_round = 1
-	state.dragon_intent = _next_intent()
-	return {"ok": true, "message": "Врата захлопнулись. Дракон поднимает голову..."}
+	state.dragon_intent = _next_intent(state)
+	return {"ok": true, "message": "Врата захлопнулись. Перед тобой: %s. Охота №%d начинается!" % [form_name(state), state.dragon_victories + 1]}
 
 func act(state: AshenGameState, action: String) -> Dictionary:
 	if not state.battle_active:
@@ -44,25 +50,39 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		return {"ok": false, "message": "Неизвестное действие."}
 
 	if state.dragon_hp <= 0.0:
+		var reward := 120 + state.chapter * 12 + state.dragon_victories * 18
 		state.battle_active = false
 		state.dragon_defeated = true
-		state.gold += 120 + state.chapter * 12
+		state.dragon_victories += 1
+		state.gold += reward
 		state.chapter += 1
-		return {"ok": true, "won": true, "damage": damage, "message": "ДРАКОН ПОВЕРЖЕН! Ты забираешь сокровища логова. +%d золота. Дверь в мастерской теперь ведёт в Бесконечный режим." % (120 + (state.chapter - 1) * 12)}
+		return {"ok": true, "won": true, "damage": damage, "message": "%s ПОВЕРЖЕН! Сокровища логова: +%d золота. Побед в охоте: %d. Следующий противник будет сильнее." % [form_name(state), reward, state.dragon_victories]}
 
 	var incoming := 0.0
 	var avoided := false
-	if intent == "claw":
-		incoming = 25.0 + state.dragon_round * 1.4
-		avoided = action == "dodge"
-	elif intent == "flame":
-		incoming = 32.0 + state.dragon_round * 1.7
-		avoided = action == "dodge"
-		if avoided:
-			incoming *= 0.45
-	elif intent == "tail":
-		incoming = 21.0 + state.dragon_round * 1.2
-		avoided = action == "dodge"
+	match intent:
+		"claw":
+			incoming = 25.0 + state.dragon_round * 1.4
+			avoided = action == "dodge"
+		"flame":
+			incoming = 32.0 + state.dragon_round * 1.7
+			if action == "dodge":
+				incoming *= 0.45
+		"tail":
+			incoming = 21.0 + state.dragon_round * 1.2
+			avoided = action == "dodge"
+		"inferno":
+			incoming = 40.0 + state.dragon_round * 2.0
+			if action == "dodge":
+				incoming *= 0.62
+		"soul_drain":
+			incoming = 28.0 + state.dragon_round * 1.5
+			if action == "guard":
+				incoming *= 0.55
+			state.dragon_hp = minf(state.dragon_max_hp, state.dragon_hp + 10.0)
+		"void_claw":
+			incoming = 31.0 + state.dragon_round * 1.6
+			avoided = action == "dodge"
 	if action == "guard":
 		incoming *= 0.34
 	if ability == "dragon_hide":
@@ -77,18 +97,30 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		return {"ok": true, "lost": true, "damage": damage, "incoming": incoming, "message": "Ты падаешь на колено. Дракон оставляет тебя в живых — пока. Вернись в кузницу, укрепи клинок и попробуй снова."}
 
 	state.dragon_round += 1
-	state.dragon_intent = _next_intent()
+	state.dragon_intent = _next_intent(state)
 	var action_text := "Ты уклоняешься от удара!" if action == "dodge" and avoided else ("Ты принимаешь удар на защиту." if action == "guard" else ("Критический удар! " if crit else "") + "Ты наносишь дракону %.0f урона." % damage)
 	var defense_text := " Атака дракона не задела тебя." if avoided else " Дракон наносит %.0f урона." % incoming
+	if intent == "soul_drain":
+		defense_text += " Дракон восстановил 10 здоровья."
 	return {"ok": true, "damage": damage, "incoming": incoming, "message": action_text + defense_text}
 
-func _next_intent() -> String:
-	var roll := randi_range(0, 2)
-	return ["claw", "flame", "tail"][roll]
+func _next_intent(state: AshenGameState) -> String:
+	var choices: Array[String]
+	match state.dragon_form:
+		1:
+			choices = ["claw", "tail", "inferno", "inferno"]
+		2:
+			choices = ["void_claw", "tail", "soul_drain", "soul_drain"]
+		_:
+			choices = ["claw", "flame", "tail"]
+	return choices[randi_range(0, choices.size() - 1)]
 
 func intent_text(state: AshenGameState) -> String:
 	match state.dragon_intent:
 		"claw": return "КОГТИ ДРАКОНА • тяжёлый выпад"
 		"flame": return "ОГНЕННОЕ ДЫХАНИЕ • широкая атака"
 		"tail": return "УДАР ХВОСТОМ • круговая атака"
+		"inferno": return "ПЕКЛО • сокрушительный огненный шторм"
+		"soul_drain": return "ПОГЛОЩЕНИЕ ДУШ • дракон крадёт жизненную силу"
+		"void_claw": return "КОГТИ ПУСТОТЫ • пронзающий выпад"
 	return "Дракон готовится атаковать"

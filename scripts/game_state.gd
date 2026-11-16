@@ -32,6 +32,8 @@ var player_hp: float = 120.0
 var dragon_round: int = 1
 var dragon_intent: String = "claw"
 var dragon_defeated: bool = false
+var dragon_victories: int = 0
+var dragon_form: int = 0
 
 func to_dict() -> Dictionary:
 	return {
@@ -49,7 +51,8 @@ func to_dict() -> Dictionary:
 		"battle_active": battle_active, "dragon_hp": dragon_hp,
 		"dragon_max_hp": dragon_max_hp, "player_hp": player_hp,
 		"dragon_round": dragon_round, "dragon_intent": dragon_intent,
-		"dragon_defeated": dragon_defeated
+		"dragon_defeated": dragon_defeated, "dragon_victories": dragon_victories,
+		"dragon_form": dragon_form
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -90,3 +93,5 @@ func from_dict(data: Dictionary) -> void:
 	dragon_round = int(data.get("dragon_round", dragon_round))
 	dragon_intent = str(data.get("dragon_intent", dragon_intent))
 	dragon_defeated = bool(data.get("dragon_defeated", false))
+	dragon_victories = int(data.get("dragon_victories", 0))
+	dragon_form = int(data.get("dragon_form", 0))
