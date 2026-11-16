@@ -31,6 +31,7 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 	var intent := state.dragon_intent
 	var damage := 0.0
 	var crit := false
+	var item_message: String = ""
 	if action == "attack":
 		var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
 		damage = 16.0 + float(weapon.base_value) * 0.32 + state.quality * 0.42
@@ -54,6 +55,28 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		if state.weapon_awakened and state.awakened_weapon_id == state.weapon_id:
 			damage += 8.0
 		state.dragon_hp = maxf(0.0, state.dragon_hp - damage)
+	elif action == "heal":
+		var flasks: int = int(state.battle_items.get("healing_flask", 0))
+		if flasks <= 0 or state.player_hp >= 120.0:
+			return {"ok": false, "message": "Эликсир недоступен: запас пуст или здоровье уже полное."}
+		state.battle_items["healing_flask"] = flasks - 1
+		var restored: float = minf(45.0, 120.0 - state.player_hp)
+		state.player_hp += restored
+		item_message = "Эликсир восстановил %.0f здоровья." % restored
+	elif action == "bomb":
+		var bombs: int = int(state.battle_items.get("dragon_bomb", 0))
+		if bombs <= 0:
+			return {"ok": false, "message": "Драконьих бомб нет в запасе. Изготовь их в кузнице."}
+		state.battle_items["dragon_bomb"] = bombs - 1
+		damage = 68.0 + float(state.chapter) * 2.0
+		state.dragon_hp = maxf(0.0, state.dragon_hp - damage)
+		item_message = "Бомба разрывает чешую дракона!"
+	elif action == "ward":
+		var runes: int = int(state.battle_items.get("ward_rune", 0))
+		if runes <= 0:
+			return {"ok": false, "message": "Рун защиты нет в запасе. Изготовь их в кузнице."}
+		state.battle_items["ward_rune"] = runes - 1
+		item_message = "Руна вспыхивает защитным барьером."
 	elif action != "dodge" and action != "guard":
 		return {"ok": false, "message": "Неизвестное действие."}
 
@@ -130,6 +153,8 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 
 	if action == "guard":
 		incoming *= 0.38
+	elif action == "ward":
+		incoming *= 0.15
 	incoming *= 1.0 - float(state.dragon_armor_level) * 0.08
 	if ability == "dragon_hide": incoming *= 0.72
 	if ability == "frost_shell": incoming *= 0.82
@@ -147,7 +172,7 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 
 	state.dragon_round += 1
 	state.dragon_intent = _next_intent(state)
-	var action_text := "Ты уклоняешься от удара!" if action == "dodge" and avoided else ("Ты принимаешь удар на защиту." if action == "guard" else ("Критический удар! " if crit else "") + "Ты наносишь дракону %.0f урона." % damage)
+	var action_text: String = item_message if item_message != "" else ("Ты уклоняешься от удара!" if action == "dodge" and avoided else ("Ты принимаешь удар на защиту." if action == "guard" else (("Критический удар! " if crit else "") + "Ты наносишь дракону %.0f урона." % damage)))
 	var defense_text := " Атака дракона не задела тебя." if avoided else " Дракон наносит %.0f урона." % incoming
 	if intent == "soul_drain": defense_text += " Дракон восстановил 10 здоровья."
 	return {"ok": true, "damage": damage, "incoming": incoming, "message": action_text + defense_text + burn_text + phase_message}

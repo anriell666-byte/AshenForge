@@ -7,6 +7,7 @@ const RelicSystem = preload("res://scripts/relic_system.gd")
 const WeaponSystem = preload("res://scripts/weapon_system.gd")
 const MerchantSystem = preload("res://scripts/merchant_system.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
+const AchievementSystem = preload("res://scripts/achievement_system.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
 const DragonCombat = preload("res://scripts/dragon_combat.gd")
 const DRAGON_VIEW_SCRIPT = preload("res://scripts/dragon_arena_view.gd")
@@ -17,6 +18,7 @@ var economy = EconomySystem.new()
 var relic_machine = RelicSystem.new()
 var weapon_system = WeaponSystem.new()
 var merchant = MerchantSystem.new()
+var achievement_system = AchievementSystem.new()
 var dragon_combat = DragonCombat.new()
 var forge_ui: Control
 var dragon_view: Control
@@ -41,6 +43,9 @@ var temper_button: Button
 var scale_upgrade_button: Button
 var void_upgrade_button: Button
 var craft_buttons: Array[Button] = []
+var item_buttons: Array[Button] = []
+var item_inventory_label: Label
+var achievement_label: Label
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -244,6 +249,24 @@ func _build_screen() -> void:
 		craft_button.pressed.connect(_on_craft_weapon.bind(craft_id))
 		column.add_child(craft_button)
 		craft_buttons.append(craft_button)
+
+	item_inventory_label = Label.new()
+	item_inventory_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item_inventory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	item_inventory_label.add_theme_color_override("font_color", Color("#d6c5a8"))
+	column.add_child(item_inventory_label)
+	achievement_label = Label.new()
+	achievement_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	achievement_label.add_theme_font_size_override("font_size", 11)
+	achievement_label.add_theme_color_override("font_color", Color("#c6a6e0"))
+	column.add_child(achievement_label)
+	for item_id in ["healing_flask", "dragon_bomb", "ward_rune"]:
+		var item_button := _make_button("ИЗГОТОВИТЬ ПРЕДМЕТ")
+		item_button.custom_minimum_size.y = 42
+		item_button.add_theme_font_size_override("font_size", 12)
+		item_button.pressed.connect(_on_craft_battle_item.bind(item_id))
+		column.add_child(item_button)
+		item_buttons.append(item_button)
 
 	tribute_button = _make_button("Принести дань дракону")
 	tribute_button.pressed.connect(_on_tribute)
@@ -502,6 +525,27 @@ func _build_battle_overlay() -> void:
 	guard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guard.pressed.connect(_on_battle_action.bind("guard"))
 	defense_row.add_child(guard)
+	var item_row := HBoxContainer.new()
+	item_row.add_theme_constant_override("separation", 6)
+	battle_column.add_child(item_row)
+	var heal_action := _make_button("ЭЛИКСИР")
+	heal_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heal_action.custom_minimum_size.y = 48
+	heal_action.add_theme_font_size_override("font_size", 12)
+	heal_action.pressed.connect(_on_battle_action.bind("heal"))
+	item_row.add_child(heal_action)
+	var bomb_action := _make_button("БОМБА")
+	bomb_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bomb_action.custom_minimum_size.y = 48
+	bomb_action.add_theme_font_size_override("font_size", 12)
+	bomb_action.pressed.connect(_on_battle_action.bind("bomb"))
+	item_row.add_child(bomb_action)
+	var ward_action := _make_button("РУНА")
+	ward_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ward_action.custom_minimum_size.y = 48
+	ward_action.add_theme_font_size_override("font_size", 12)
+	ward_action.pressed.connect(_on_battle_action.bind("ward"))
+	item_row.add_child(ward_action)
 	var leave := _make_button("Отступить в кузницу")
 	leave.pressed.connect(_on_leave_battle)
 	battle_column.add_child(leave)
@@ -667,6 +711,11 @@ func _on_craft_weapon(weapon_id: String) -> void:
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
+func _on_craft_battle_item(item_id: String) -> void:
+	var result: Dictionary = economy.craft_battle_item(state, item_id)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
 func _on_upgrade(upgrade_id: String) -> void:
 	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
 	message_label.text = str(result.get("message", ""))
@@ -691,6 +740,22 @@ func _refresh() -> void:
 	durability_bar.value = state.durability
 	relic_label.text = relic_machine.summary(state)
 	material_label.text = "МАТЕРИАЛЫ: Пепел %d  •  Чешуя %d  •  Ядра пустоты %d" % [int(state.materials.get("dragon_ash", 0)), int(state.materials.get("dragon_scales", 0)), int(state.materials.get("void_cores", 0))]
+	item_inventory_label.text = "БОЕВОЙ ЗАПАС: Эликсиры %d • Бомбы %d • Руны %d" % [int(state.battle_items.get("healing_flask", 0)), int(state.battle_items.get("dragon_bomb", 0)), int(state.battle_items.get("ward_rune", 0))]
+	var new_achievements: Array[String] = achievement_system.claim_ready(state)
+	if not new_achievements.is_empty():
+		message_label.text = "ДОСТИЖЕНИЕ! " + " • ".join(new_achievements)
+	achievement_label.text = achievement_system.journal(state)
+	var item_ids: Array[String] = ["healing_flask", "dragon_bomb", "ward_rune"]
+	var item_titles: Array[String] = ["ЭЛИКСИР ЖИЗНИ", "ДРАКОНЬЯ БОМБА", "РУНА ЗАЩИТЫ"]
+	var item_prices: Array[int] = [55, 70, 65]
+	var item_materials: Array[String] = ["", "dragon_ash", "dragon_scales"]
+	for item_index in range(item_buttons.size()):
+		var item_id: String = item_ids[item_index]
+		var item_count: int = int(state.battle_items.get(item_id, 0))
+		var item_material: String = item_materials[item_index]
+		var material_ready: bool = item_material == "" or int(state.materials.get(item_material, 0)) >= 1
+		item_buttons[item_index].text = "%s • %d зол. • В запасе %d" % [item_titles[item_index], item_prices[item_index], item_count]
+		item_buttons[item_index].disabled = item_count >= 5 or state.gold < item_prices[item_index] or not material_ready
 	var temper_level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
 	temper_button.text = "ЗАКАЛИТЬ • УР. %d/5 • %d золота + 1 пепел" % [temper_level, economy.temper_cost(state)]
 	temper_button.disabled = not state.has_blade or temper_level >= 5 or int(state.materials.get("dragon_ash", 0)) < 1 or state.gold < economy.temper_cost(state)

@@ -40,6 +40,8 @@ var materials: Dictionary = {"dragon_ash": 0, "dragon_scales": 0, "void_cores": 
 var weapon_temper_levels: Dictionary = {}
 var dragon_armor_level: int = 0
 var void_mastery_level: int = 0
+var battle_items: Dictionary = {"healing_flask": 1, "dragon_bomb": 0, "ward_rune": 0}
+var claimed_achievement_ids: Array = []
 
 func to_dict() -> Dictionary:
 	return {
@@ -62,7 +64,9 @@ func to_dict() -> Dictionary:
 		"dragon_form": dragon_form, "materials": materials,
 		"weapon_temper_levels": weapon_temper_levels,
 		"dragon_armor_level": dragon_armor_level,
-		"void_mastery_level": void_mastery_level
+		"void_mastery_level": void_mastery_level,
+		"battle_items": battle_items,
+		"claimed_achievement_ids": claimed_achievement_ids
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -115,3 +119,9 @@ func from_dict(data: Dictionary) -> void:
 		weapon_temper_levels = saved_temper
 	dragon_armor_level = clampi(int(data.get("dragon_armor_level", 0)), 0, 5)
 	void_mastery_level = clampi(int(data.get("void_mastery_level", 0)), 0, 5)
+	var saved_items = data.get("battle_items", battle_items)
+	if saved_items is Dictionary:
+		battle_items = saved_items
+	var saved_achievements = data.get("claimed_achievement_ids", [])
+	if saved_achievements is Array:
+		claimed_achievement_ids = saved_achievements.duplicate()

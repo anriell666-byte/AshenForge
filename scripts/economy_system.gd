@@ -123,3 +123,26 @@ func temper_weapon(state: AshenGameState) -> Dictionary:
 	state.materials["dragon_ash"] = ash - 1
 	state.weapon_temper_levels[state.weapon_id] = level + 1
 	return {"ok": true, "message": "%s закалён до уровня %d: урон в бою +10%%, цена продажи +8%% за уровень." % [state.weapon_name, level + 1]}
+
+func craft_battle_item(state: AshenGameState, item_id: String) -> Dictionary:
+	var recipes: Dictionary = {
+		"healing_flask": {"name": "Эликсир жизни", "gold": 55, "material": "", "max": 5},
+		"dragon_bomb": {"name": "Драконья бомба", "gold": 70, "material": "dragon_ash", "max": 5},
+		"ward_rune": {"name": "Руна защиты", "gold": 65, "material": "dragon_scales", "max": 5}
+	}
+	if not recipes.has(item_id):
+		return {"ok": false, "message": "Неизвестный боевой предмет."}
+	var recipe: Dictionary = recipes[item_id]
+	var count: int = int(state.battle_items.get(item_id, 0))
+	if count >= int(recipe.max):
+		return {"ok": false, "message": "Запас предмета уже максимален."}
+	if state.gold < int(recipe.gold):
+		return {"ok": false, "message": "Не хватает %d золота." % (int(recipe.gold) - state.gold)}
+	var material_id: String = str(recipe.material)
+	if material_id != "" and int(state.materials.get(material_id, 0)) < 1:
+		return {"ok": false, "message": "Не хватает редкого материала для изготовления."}
+	state.gold -= int(recipe.gold)
+	if material_id != "":
+		state.materials[material_id] = int(state.materials.get(material_id, 0)) - 1
+	state.battle_items[item_id] = count + 1
+	return {"ok": true, "message": "Изготовлено: %s. В запасе: %d." % [str(recipe.name), count + 1]}
