@@ -1,0 +1,42 @@
+extends RefCounted
+class_name AshenMerchantSystem
+
+const WeaponSystem = preload("res://scripts/weapon_system.gd")
+
+var weapons = WeaponSystem.new()
+
+func stock(state: AshenGameState) -> Array:
+	var offers: Array = []
+	for weapon in weapons.WEAPONS:
+		if not bool(weapon.get("merchant_only", false)):
+			continue
+		if state.chapter < int(weapon.unlock_chapter):
+			continue
+		offers.append(weapon)
+	return offers
+
+func buy_weapon(state: AshenGameState, weapon_id: String) -> Dictionary:
+	var weapon: Dictionary = weapons.get_weapon(weapon_id)
+	if not bool(weapon.get("merchant_only", false)):
+		return {"ok": false, "message": "Этот клинок не продаётся у торговца."}
+	if state.owned_weapon_ids.has(weapon_id):
+		return {"ok": false, "message": "Этот чертёж уже есть в твоей коллекции."}
+	if state.chapter < int(weapon.unlock_chapter):
+		return {"ok": false, "message": "Торговец пока не доверяет тебе настолько редкий товар."}
+	var price := int(weapon.get("price", 0))
+	if state.gold < price:
+		return {"ok": false, "message": "Не хватает %d золотых." % (price - state.gold)}
+	state.gold -= price
+	state.owned_weapon_ids.append(weapon_id)
+	state.selected_weapon_id = weapon_id
+	return {
+		"ok": true,
+		"weapon_id": weapon_id,
+		"message": "Куплен чертёж «%s»! Он выбран для следующей заготовки." % str(weapon.name)
+	}
+
+func offer_text(weapon: Dictionary) -> String:
+	return "%s • %d золота\n%s\nКачество ×%.2f | Нагрев ×%.2f | Риск ×%.2f" % [
+		str(weapon.name), int(weapon.price), str(weapon.description),
+		float(weapon.quality_scale), float(weapon.heat_scale), float(weapon.break_risk)
+	]

@@ -5,6 +5,7 @@ const ForgeSystem = preload("res://scripts/forge_system.gd")
 const EconomySystem = preload("res://scripts/economy_system.gd")
 const RelicSystem = preload("res://scripts/relic_system.gd")
 const WeaponSystem = preload("res://scripts/weapon_system.gd")
+const MerchantSystem = preload("res://scripts/merchant_system.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
 
@@ -13,6 +14,7 @@ var forge = ForgeSystem.new()
 var economy = EconomySystem.new()
 var relic_machine = RelicSystem.new()
 var weapon_system = WeaponSystem.new()
+var merchant = MerchantSystem.new()
 var forge_view: Control
 var header_label: Label
 var weapon_label: Label
@@ -31,6 +33,11 @@ var cool_button: Button
 var upgrade_button: Button
 var relic_button: Button
 var weapon_select_button: Button
+var merchant_button: Button
+var merchant_panel: PanelContainer
+var merchant_status: Label
+var merchant_offer_labels: Array[Label] = []
+var merchant_buy_buttons: Array[Button] = []
 
 func _ready() -> void:
 	randomize()
@@ -119,6 +126,39 @@ func _build_screen() -> void:
 	weapon_select_button.pressed.connect(_on_cycle_weapon)
 	column.add_child(weapon_select_button)
 
+	merchant_button = _make_button("ТОРГОВЕЦ • РЕДКИЕ ЧЕРТЕЖИ")
+	merchant_button.pressed.connect(_on_toggle_merchant)
+	column.add_child(merchant_button)
+
+	merchant_panel = PanelContainer.new()
+	merchant_panel.add_theme_stylebox_override("panel", _panel_style())
+	merchant_panel.visible = false
+	column.add_child(merchant_panel)
+	var merchant_column := VBoxContainer.new()
+	merchant_column.add_theme_constant_override("separation", 5)
+	merchant_panel.add_child(merchant_column)
+	var merchant_title := Label.new()
+	merchant_title.text = "СТРАНСТВУЮЩИЙ ТОРГОВЕЦ"
+	merchant_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	merchant_title.add_theme_color_override("font_color", Color("#e4c28f"))
+	merchant_column.add_child(merchant_title)
+	merchant_status = Label.new()
+	merchant_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	merchant_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	merchant_column.add_child(merchant_status)
+	for index in range(3):
+		var offer_label := Label.new()
+		offer_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		offer_label.add_theme_font_size_override("font_size", 12)
+		merchant_column.add_child(offer_label)
+		merchant_offer_labels.append(offer_label)
+		var buy_button := _make_button("Купить чертёж")
+		buy_button.custom_minimum_size.y = 42
+		buy_button.add_theme_font_size_override("font_size", 14)
+		buy_button.pressed.connect(_on_buy_offer.bind(index))
+		merchant_column.add_child(buy_button)
+		merchant_buy_buttons.append(buy_button)
+
 	strike_button = _make_button("УДАРИТЬ МОЛОТОМ")
 	strike_button.custom_minimum_size.y = 62
 	strike_button.pressed.connect(_on_strike)
@@ -149,7 +189,7 @@ func _build_screen() -> void:
 	column.add_child(upgrade_button)
 
 	var footer := Label.new()
-	footer.text = "КОНТРАКТ • РЕЛИКВИИ • ДРАКОН"
+	footer.text = "КОНТРАКТ • РЕЛИКВИИ • ТОРГОВЕЦ • ДРАКОН"
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_color_override("font_color", Color("#9d929f"))
 	column.add_child(footer)
@@ -204,6 +244,20 @@ func _make_button(caption: String) -> Button:
 	button.add_theme_stylebox_override("hover", hover)
 	button.add_theme_stylebox_override("pressed", hover)
 	return button
+
+func _on_toggle_merchant() -> void:
+	merchant_panel.visible = not merchant_panel.visible
+	_refresh()
+
+func _on_buy_offer(index: int) -> void:
+	var offers := merchant.stock(state)
+	if index >= offers.size():
+		message_label.text = "У торговца пока нет подходящего товара."
+		_refresh()
+		return
+	var result: Dictionary = merchant.buy_weapon(state, str(offers[index].id))
+	message_label.text = str(result.get("message", ""))
+	_refresh()
 
 func _on_cycle_weapon() -> void:
 	state.selected_weapon_id = weapon_system.next_weapon_id(state, state.selected_weapon_id)
@@ -273,4 +327,22 @@ func _refresh() -> void:
 	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
 	if state.contract_complete:
 		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
+
+	var offers := merchant.stock(state)
+	var owned_count := 0
+	for offer in merchant.weapons.WEAPONS:
+		if bool(offer.get("merchant_only", false)) and state.owned_weapon_ids.has(str(offer.id)):
+			owned_count += 1
+	merchant_status.text = "Золото: %d • редких чертежей собрано: %d/3" % [state.gold, owned_count]
+	for index in range(merchant_offer_labels.size()):
+		if index < offers.size():
+			var offer: Dictionary = offers[index]
+			merchant_offer_labels[index].text = merchant.offer_text(offer)
+			merchant_offer_labels[index].visible = true
+			merchant_buy_buttons[index].visible = true
+			merchant_buy_buttons[index].disabled = state.gold < int(offer.price) or state.owned_weapon_ids.has(str(offer.id))
+			merchant_buy_buttons[index].text = "Уже куплено" if state.owned_weapon_ids.has(str(offer.id)) else "Купить • %d золота" % int(offer.price)
+		else:
+			merchant_offer_labels[index].visible = false
+			merchant_buy_buttons[index].visible = false
 	SaveManager.save_game(state)
