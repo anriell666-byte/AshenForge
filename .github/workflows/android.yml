@@ -1,72 +1,73 @@
-name: Build Android APK
+name: AshenForge Android APK
 
-on:
+"on":
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - "**.gd"
-      - "**.tscn"
-      - "**.godot"
-      - "export_presets.cfg"
-      - ".github/workflows/android.yml"
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build debug APK
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Install Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
+      - name: Install Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "platform-tools platforms;android-35 build-tools;35.0.1 cmdline-tools;latest ndk;28.1.13356709 cmake;3.10.2.4988404"
+          packages: "platform-tools platforms;android-35 build-tools;35.0.1"
 
-      - name: Download Godot and export templates
+      - name: Download Godot 4.4.1
+        shell: bash
         run: |
-          mkdir -p "$HOME/godot" "$HOME/.local/share/godot/export_templates/4.4.1.stable"
-          curl -L https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -o "$HOME/godot/godot.zip"
+          mkdir -p "$HOME/godot"
+          curl -fL "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip" -o "$HOME/godot/godot.zip"
           unzip -o "$HOME/godot/godot.zip" -d "$HOME/godot"
           chmod +x "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64"
-          curl -L https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz -o "$HOME/godot/templates.tpz"
-          unzip -o "$HOME/godot/templates.tpz" -d "$HOME/godot/templates"
-          cp "$HOME/godot/templates/templates/"* "$HOME/.local/share/godot/export_templates/4.4.1.stable/" || cp "$HOME/godot/templates/"* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
 
-      - name: Create debug signing key
+      - name: Download export templates
+        shell: bash
         run: |
-          mkdir -p "$HOME/.android" "$HOME/.config/godot"
-          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
-          [gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "/usr/local/lib/android/sdk"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          export/android/debug_keystore = "$HOME/.android/debug.keystore"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz" -o "$HOME/godot/templates.tpz"
+          unzip -o "$HOME/godot/templates.tpz" -d "$HOME/godot/templates"
+          cp "$HOME/godot/templates/templates/"* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+
+      - name: Create Android debug keystore
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -noprompt -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
 
       - name: Import Godot project
-        run: "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --editor --path . --import
+        shell: bash
+        run: |
+          "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --editor --path . --import
 
-      - name: Export Android APK (verbose diagnostics)
+      - name: Export Android APK
+        shell: bash
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           mkdir -p build
-          "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path . --verbose --export-debug Android build/ashenforge-debug.apk
+          "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path . --export-debug Android build/ashenforge-debug.apk
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ashenforge-android-debug
-          path: build/*.apk
+          path: build/ashenforge-debug.apk
           if-no-files-found: error
           retention-days: 14
