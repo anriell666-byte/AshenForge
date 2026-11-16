@@ -1,23 +1,34 @@
 # ASHENFORGE: Dragon's Tribute
 
-Portrait-mode dark fantasy blacksmith roguelite prototype made with Godot 4.4.1.
+A portrait-mode dark fantasy blacksmith roguelite built with Godot 4.4.1.
 
-## Current foundation
-- Hammer strikes improve blade quality while reducing durability.
-- Critical strikes improve quality faster.
-- Overheating damages the blade.
-- Sell a blade for gold and pay tribute to advance chapters.
-- Gold, chapter and tribute goal are saved locally.
-- The forge scene is drawn procedurally in a pseudo-3D style.
+## Project structure
 
-## Build an Android APK from your phone
-1. Open the **Actions** tab.
-2. Select **Build Android APK**.
-3. Tap **Run workflow** and confirm.
-4. When the run completes, download the **ashenforge-android-debug** artifact.
+- `scenes/` — game scenes.
+- `scripts/` — game state, forging, economy, saving, visuals and screen controller.
+- `data/` — JSON definitions for weapons, materials and upgrades.
+- `assets/` — source artwork (SVG).
+- `.github/workflows/` — cloud Android build.
+
+## Current playable systems
+
+- Forge strikes, critical hits, heat and blade durability.
+- Cooling the blade between forging sessions.
+- Blade sale value based on quality and remaining durability.
+- Dragon tribute and chapter progression.
+- Local save data for gold, chapter, blade stats and upgrades.
+- First upgrade path: improved bellows.
+
+## Build from a phone
+
+1. Open the repository's **Actions** tab.
+2. Select **AshenForge Android APK**.
+3. Tap **Run workflow**.
+4. When the run succeeds, download the `ashenforge-android-debug` artifact.
 5. Extract the ZIP and install the APK on Android.
 
-No local Godot editor is required for the cloud build.
+No local editor is needed for the cloud build. The project itself can be opened in Godot 4.4.1 on desktop.
 
-## Status
-This is milestone 1: a playable foundation, not the finished full game. More weapons, materials, relics, enemies, events, sound, balancing and progression systems are planned.
+## Development note
+
+This is a structured playable foundation, not yet the final full game. Planned milestones include weapon recipes, material selection, additional upgrades, random events, dragon encounters, sound, richer animations and balancing.

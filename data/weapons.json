@@ -1,0 +1,7 @@
+{
+  "weapons": [
+    {"id":"coal_blade","name":"Угольный клинок","base_value":9,"quality_scale":1.35,"durability_scale":0.24,"unlock_chapter":1},
+    {"id":"ember_sabre","name":"Сабля тлеющих углей","base_value":22,"quality_scale":1.55,"durability_scale":0.28,"unlock_chapter":3},
+    {"id":"wyrmfang","name":"Клык дракона","base_value":55,"quality_scale":1.8,"durability_scale":0.32,"unlock_chapter":6}
+  ]
+}

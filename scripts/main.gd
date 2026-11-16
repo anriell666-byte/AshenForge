@@ -1,173 +1,214 @@
 extends Control
 
-const SAVE_PATH := "user://ashenforge_save.json"
-var gold := 18
-var tribute_goal := 30
-var chapter := 1
-var heat := 24.0
-var quality := 12.0
-var durability := 100.0
-var has_blade := true
-var status: Label
-var stats: Label
-var hint: Label
+const GameState = preload("res://scripts/game_state.gd")
+const ForgeSystem = preload("res://scripts/forge_system.gd")
+const EconomySystem = preload("res://scripts/economy_system.gd")
+const SaveManager = preload("res://scripts/save_manager.gd")
+const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
+
+var state = GameState.new()
+var forge = ForgeSystem.new()
+var economy = EconomySystem.new()
+var forge_view: Control
+var header_label: Label
+var weapon_label: Label
+var stats_label: Label
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
-var strike: Button
-var sell: Button
-var tribute: Button
+var durability_bar: ProgressBar
+var message_label: Label
+var strike_button: Button
+var sell_button: Button
+var tribute_button: Button
+var cool_button: Button
+var upgrade_button: Button
 
 func _ready() -> void:
-	_build_ui()
-	_load_game()
+	randomize()
+	SaveManager.load_game(state)
+	_build_screen()
 	_refresh()
-	queue_redraw()
 
-func _draw() -> void:
-	var s := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, s), Color("#17131a"))
-	draw_rect(Rect2(0, 0, s.x, s.y * 0.56), Color("#211c25"))
-	for x in range(0, int(s.x), 90):
-		draw_line(Vector2(x, 0), Vector2(x - 25, s.y * 0.56), Color("#302833"), 3.0)
-	draw_circle(Vector2(s.x * 0.5, s.y * 0.49), s.x * 0.28, Color(0.95, 0.24, 0.04, 0.12))
-	draw_colored_polygon(PackedVector2Array([Vector2(s.x*.27,s.y*.40),Vector2(s.x*.73,s.y*.40),Vector2(s.x*.69,s.y*.62),Vector2(s.x*.31,s.y*.62)]),Color("#51434a"))
-	draw_rect(Rect2(s.x*.34,s.y*.47,s.x*.32,s.y*.12),Color("#171116"))
-	draw_colored_polygon(PackedVector2Array([Vector2(s.x*.40,s.y*.57),Vector2(s.x*.45,s.y*.49),Vector2(s.x*.50,s.y*.56),Vector2(s.x*.55,s.y*.48),Vector2(s.x*.61,s.y*.57),Vector2(s.x*.57,s.y*.60),Vector2(s.x*.43,s.y*.60)]),Color("#f47a27"))
-	draw_colored_polygon(PackedVector2Array([Vector2(s.x*.24,s.y*.70),Vector2(s.x*.76,s.y*.70),Vector2(s.x*.69,s.y*.76),Vector2(s.x*.31,s.y*.76)]),Color("#a6a0a7"))
-	draw_rect(Rect2(s.x*.39,s.y*.76,s.x*.22,s.y*.07),Color("#57515b"))
-	if has_blade:
-		draw_colored_polygon(PackedVector2Array([Vector2(s.x*.36,s.y*.69),Vector2(s.x*.65,s.y*.675),Vector2(s.x*.58,s.y*.65),Vector2(s.x*.42,s.y*.66)]),Color("#c9d1d3"))
-	draw_rect(Rect2(0,s.y*.88,s.x,s.y*.12),Color("#100e13"))
+func _build_screen() -> void:
+	forge_view = FORGE_SCENE.instantiate()
+	forge_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(forge_view)
+	move_child(forge_view, 0)
 
-func _build_ui() -> void:
-	var root := VBoxContainer.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 10)
-	root.add_theme_constant_override("margin_left", 24)
-	root.add_theme_constant_override("margin_right", 24)
-	root.add_theme_constant_override("margin_top", 24)
-	root.add_theme_constant_override("margin_bottom", 22)
-	add_child(root)
-	var title := Label.new()
-	title.text = "ASHENFORGE"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color("#f0d6b2"))
-	root.add_child(title)
-	status = Label.new()
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status.add_theme_font_size_override("font_size", 18)
-	root.add_child(status)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(spacer)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	add_child(margin)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+
+	header_label = Label.new()
+	header_label.text = "ASHENFORGE"
+	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header_label.add_theme_font_size_override("font_size", 32)
+	header_label.add_theme_color_override("font_color", Color("#f0d6b2"))
+	column.add_child(header_label)
+
+	var spacer_top := Control.new()
+	spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(spacer_top)
+
 	var panel := PanelContainer.new()
-	root.add_child(panel)
-	var box := VBoxContainer.new()
-	panel.add_child(box)
-	stats = Label.new()
-	stats.add_theme_font_size_override("font_size", 17)
-	box.add_child(stats)
-	heat_bar = ProgressBar.new()
-	heat_bar.max_value = 100
-	heat_bar.show_percentage = false
-	box.add_child(heat_bar)
-	quality_bar = ProgressBar.new()
-	quality_bar.max_value = 100
-	quality_bar.show_percentage = false
-	box.add_child(quality_bar)
-	hint = Label.new()
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size.y = 48
-	root.add_child(hint)
-	strike = _button("УДАРИТЬ МОЛОТОМ")
-	strike.pressed.connect(_on_strike)
-	root.add_child(strike)
-	var row := HBoxContainer.new()
-	root.add_child(row)
-	sell = _button("Продать клинок")
-	sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sell.pressed.connect(_on_sell)
-	row.add_child(sell)
-	tribute = _button("Отдать дань")
-	tribute.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tribute.pressed.connect(_on_tribute)
-	row.add_child(tribute)
+	panel.add_theme_stylebox_override("panel", _panel_style())
+	column.add_child(panel)
+	var panel_column := VBoxContainer.new()
+	panel_column.add_theme_constant_override("separation", 7)
+	panel.add_child(panel_column)
 
-func _button(caption: String) -> Button:
-	var b := Button.new()
-	b.text = caption
-	b.custom_minimum_size.y = 60
-	b.add_theme_font_size_override("font_size", 18)
-	return b
+	weapon_label = Label.new()
+	weapon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	weapon_label.add_theme_font_size_override("font_size", 19)
+	weapon_label.add_theme_color_override("font_color", Color("#f0d6b2"))
+	panel_column.add_child(weapon_label)
+
+	stats_label = Label.new()
+	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stats_label.add_theme_font_size_override("font_size", 15)
+	panel_column.add_child(stats_label)
+
+	heat_bar = _make_bar(panel_column, "Жар горна", Color("#e67e45"))
+	quality_bar = _make_bar(panel_column, "Качество клинка", Color("#d7c18e"))
+	durability_bar = _make_bar(panel_column, "Прочность", Color("#8fae9b"))
+
+	message_label = Label.new()
+	message_label.text = "Разожги горн. Выкуй клинок. Не заставляй дракона ждать."
+	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message_label.custom_minimum_size.y = 48
+	message_label.add_theme_color_override("font_color", Color("#e4d5c4"))
+	column.add_child(message_label)
+
+	strike_button = _make_button("УДАРИТЬ МОЛОТОМ")
+	strike_button.custom_minimum_size.y = 62
+	strike_button.pressed.connect(_on_strike)
+	column.add_child(strike_button)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	column.add_child(row)
+	cool_button = _make_button("Остудить")
+	cool_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cool_button.pressed.connect(_on_cool)
+	row.add_child(cool_button)
+	sell_button = _make_button("Продать")
+	sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sell_button.pressed.connect(_on_sell)
+	row.add_child(sell_button)
+
+	tribute_button = _make_button("Принести дань дракону")
+	tribute_button.pressed.connect(_on_tribute)
+	column.add_child(tribute_button)
+
+	upgrade_button = _make_button("Улучшить мехи • 45 золота")
+	upgrade_button.pressed.connect(_on_upgrade)
+	column.add_child(upgrade_button)
+
+	var footer := Label.new()
+	footer.text = "ГЛАВА • ЗОЛОТО • ДАНЬ"
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer.add_theme_color_override("font_color", Color("#9d929f"))
+	column.add_child(footer)
+
+	var spacer_bottom := Control.new()
+	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(spacer_bottom)
+
+func _panel_style() -> StyleBox:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.055, 0.045, 0.065, 0.94)
+	style.border_color = Color("#66515a")
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	style.set_content_margin_all(13)
+	return style
+
+func _make_bar(parent: VBoxContainer, caption: String, fill: Color) -> ProgressBar:
+	var label := Label.new()
+	label.text = caption
+	label.add_theme_font_size_override("font_size", 13)
+	parent.add_child(label)
+	var bar := ProgressBar.new()
+	bar.max_value = 100
+	bar.show_percentage = false
+	bar.custom_minimum_size.y = 13
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color("#29232d")
+	bg.set_corner_radius_all(5)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = fill
+	fg.set_corner_radius_all(5)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
+	parent.add_child(bar)
+	return bar
+
+func _make_button(caption: String) -> Button:
+	var button := Button.new()
+	button.text = caption
+	button.custom_minimum_size.y = 52
+	button.add_theme_font_size_override("font_size", 17)
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#49343a")
+	normal.border_color = Color("#9a705c")
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(9)
+	normal.set_content_margin_all(8)
+	var hover := normal.duplicate()
+	hover.bg_color = Color("#62434a")
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", hover)
+	return button
 
 func _on_strike() -> void:
-	if not has_blade:
-		hint.text = "Сначала начни новую ковку."
-		return
-	var power := randf_range(7.0, 17.0)
-	heat = clampf(heat + randf_range(5.0, 13.0), 0.0, 100.0)
-	var critical := randf() < 0.14
-	quality = minf(100.0, quality + power * (1.7 if critical else 1.0))
-	durability -= power * (0.45 if critical else randf_range(0.45, 0.9))
-	if heat >= 92.0:
-		durability -= 12.0
-	hint.text = "Критический удар! Металл поёт." if critical else "Удар точен. Качество растёт, прочность падает."
-	if durability <= 0.0:
-		durability = 0.0
-		has_blade = false
-		hint.text = "Клинок рассыпался в искрах."
+	var result: Dictionary = forge.strike(state)
+	message_label.text = str(result.get("message", ""))
+	if forge_view.has_method("play_strike"):
+		forge_view.play_strike()
 	_refresh()
-	queue_redraw()
+
+func _on_cool() -> void:
+	message_label.text = forge.cool(state)
+	_refresh()
 
 func _on_sell() -> void:
-	if not has_blade:
-		hint.text = "Нечего продавать. Начни новую ковку."
-		return
-	var value := int(8.0 + quality * 1.25 + durability * 0.22)
-	gold += value
-	has_blade = false
-	heat = 18.0
-	quality = 0.0
-	durability = 100.0
-	hint.text = "Клинок продан за %d золотых." % value
+	var result: Dictionary = economy.sell_blade(state)
+	message_label.text = str(result.get("message", ""))
+	if bool(result.get("ok", false)):
+		forge.start_new_blade(state)
 	_refresh()
-	queue_redraw()
 
 func _on_tribute() -> void:
-	if gold < tribute_goal:
-		hint.text = "Дракону нужно ещё %d золотых." % (tribute_goal - gold)
-		return
-	gold -= tribute_goal
-	chapter += 1
-	tribute_goal = int(ceil(float(tribute_goal) * 1.35 + 5.0))
-	hint.text = "Дань принята. Дракон отступил… пока."
+	var result: Dictionary = economy.pay_tribute(state)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
+func _on_upgrade() -> void:
+	var result: Dictionary = economy.buy_upgrade(state, "bellows")
+	message_label.text = str(result.get("message", ""))
 	_refresh()
 
 func _refresh() -> void:
-	status.text = "ГЛАВА %d     •     ЗОЛОТО: %d" % [chapter, gold]
-	stats.text = "%s\nПрочность: %d%%    Качество: %d%%\nДань дракону: %d золота" % ["Угольный клинок" if has_blade else "Кузница ждёт нового клинка", int(durability), int(quality), tribute_goal]
-	heat_bar.value = heat
-	quality_bar.value = quality
-	strike.disabled = not has_blade
-	sell.disabled = not has_blade
-	tribute.disabled = gold < tribute_goal
-	_save_game()
-
-func _save_game() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"gold":gold,"chapter":chapter,"tribute_goal":tribute_goal}))
-
-func _load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var data = JSON.parse_string(f.get_as_text())
-	if typeof(data) == TYPE_DICTIONARY:
-		gold = int(data.get("gold", gold))
-		chapter = int(data.get("chapter", chapter))
-		tribute_goal = int(data.get("tribute_goal", tribute_goal))
+	header_label.text = "ASHENFORGE     •     ГЛАВА %d" % state.chapter
+	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт нового клинка"
+	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
+	heat_bar.value = state.heat
+	quality_bar.value = state.quality
+	durability_bar.value = state.durability
+	strike_button.disabled = not state.has_blade
+	sell_button.disabled = not state.has_blade
+	cool_button.disabled = not state.has_blade
+	tribute_button.disabled = state.gold < state.tribute_goal
+	upgrade_button.disabled = state.gold < 45 * (int(state.upgrades.get("bellows", 0)) + 1)
+	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
+	SaveManager.save_game(state)

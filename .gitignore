@@ -1,7 +1,5 @@
 .godot/
-.import/
 .export/
 build/
-android/
 *.tmp
-*.bak
+*.log
