@@ -69,6 +69,40 @@ func buy_upgrade(state: AshenGameState, upgrade_id: String) -> Dictionary:
 	state.upgrades[upgrade_id] = level + 1
 	return {"ok": true, "message": "Улучшение установлено: уровень %d." % (level + 1)}
 
+func dragon_armor_cost(state: AshenGameState) -> int:
+	return 120 * (state.dragon_armor_level + 1)
+
+func upgrade_dragon_armor(state: AshenGameState) -> Dictionary:
+	if state.dragon_armor_level >= 5:
+		return {"ok": false, "message": "Чешуйчатый доспех достиг максимального уровня."}
+	var scales := int(state.materials.get("dragon_scales", 0))
+	var cost := dragon_armor_cost(state)
+	if scales < 1:
+		return {"ok": false, "message": "Нужна чешуя Пламенного тирана. Победи его в охоте."}
+	if state.gold < cost:
+		return {"ok": false, "message": "Для укрепления доспеха нужно ещё %d золота." % (cost - state.gold)}
+	state.gold -= cost
+	state.materials["dragon_scales"] = scales - 1
+	state.dragon_armor_level += 1
+	return {"ok": true, "message": "Чешуйчатый доспех усилен до уровня %d. Получаемый урон от драконов снижен на %d%%." % [state.dragon_armor_level, state.dragon_armor_level * 8]}
+
+func void_mastery_cost(state: AshenGameState) -> int:
+	return 150 * (state.void_mastery_level + 1)
+
+func upgrade_void_mastery(state: AshenGameState) -> Dictionary:
+	if state.void_mastery_level >= 5:
+		return {"ok": false, "message": "Знание Пустоты достигло максимального уровня."}
+	var cores := int(state.materials.get("void_cores", 0))
+	var cost := void_mastery_cost(state)
+	if cores < 1:
+		return {"ok": false, "message": "Нужно ядро Пустоты. Победи Пожирателя пустоты."}
+	if state.gold < cost:
+		return {"ok": false, "message": "Для изучения Пустоты нужно ещё %d золота." % (cost - state.gold)}
+	state.gold -= cost
+	state.materials["void_cores"] = cores - 1
+	state.void_mastery_level += 1
+	return {"ok": true, "message": "Знание Пустоты достигло уровня %d. Урон по дракону увеличен на %d%%." % [state.void_mastery_level, state.void_mastery_level * 12]}
+
 func temper_cost(state: AshenGameState) -> int:
 	var level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
 	return 100 * (level + 1)

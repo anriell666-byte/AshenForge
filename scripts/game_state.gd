@@ -36,6 +36,8 @@ var dragon_victories: int = 0
 var dragon_form: int = 0
 var materials: Dictionary = {"dragon_ash": 0, "dragon_scales": 0, "void_cores": 0}
 var weapon_temper_levels: Dictionary = {}
+var dragon_armor_level: int = 0
+var void_mastery_level: int = 0
 
 func to_dict() -> Dictionary:
 	return {
@@ -55,7 +57,9 @@ func to_dict() -> Dictionary:
 		"dragon_round": dragon_round, "dragon_intent": dragon_intent,
 		"dragon_defeated": dragon_defeated, "dragon_victories": dragon_victories,
 		"dragon_form": dragon_form, "materials": materials,
-		"weapon_temper_levels": weapon_temper_levels
+		"weapon_temper_levels": weapon_temper_levels,
+		"dragon_armor_level": dragon_armor_level,
+		"void_mastery_level": void_mastery_level
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -104,3 +108,5 @@ func from_dict(data: Dictionary) -> void:
 	var saved_temper = data.get("weapon_temper_levels", weapon_temper_levels)
 	if saved_temper is Dictionary:
 		weapon_temper_levels = saved_temper
+	dragon_armor_level = clampi(int(data.get("dragon_armor_level", 0)), 0, 5)
+	void_mastery_level = clampi(int(data.get("void_mastery_level", 0)), 0, 5)

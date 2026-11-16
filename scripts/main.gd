@@ -38,6 +38,8 @@ var frenzy_label: Label
 var relic_label: Label
 var material_label: Label
 var temper_button: Button
+var scale_upgrade_button: Button
+var void_upgrade_button: Button
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -223,6 +225,12 @@ func _build_screen() -> void:
 	temper_button = _make_button("ЗАКАЛИТЬ КЛИНОК")
 	temper_button.pressed.connect(_on_temper)
 	column.add_child(temper_button)
+	scale_upgrade_button = _make_button("ЗАКАЛИТЬ ЧЕШУЮ ДРАКОНА")
+	scale_upgrade_button.pressed.connect(_on_scale_upgrade)
+	column.add_child(scale_upgrade_button)
+	void_upgrade_button = _make_button("ВПЛЕСТИ ЯДРО ПУСТОТЫ")
+	void_upgrade_button.pressed.connect(_on_void_upgrade)
+	column.add_child(void_upgrade_button)
 
 	tribute_button = _make_button("Принести дань дракону")
 	tribute_button.pressed.connect(_on_tribute)
@@ -631,6 +639,16 @@ func _on_temper() -> void:
 	message_label.text = str(result.get("message", ""))
 	_refresh()
 
+func _on_scale_upgrade() -> void:
+	var result: Dictionary = economy.upgrade_dragon_armor(state)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
+func _on_void_upgrade() -> void:
+	var result: Dictionary = economy.upgrade_void_mastery(state)
+	message_label.text = str(result.get("message", ""))
+	_refresh()
+
 func _on_upgrade(upgrade_id: String) -> void:
 	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
 	message_label.text = str(result.get("message", ""))
@@ -658,6 +676,14 @@ func _refresh() -> void:
 	var temper_level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
 	temper_button.text = "ЗАКАЛИТЬ • УР. %d/5 • %d золота + 1 пепел" % [temper_level, economy.temper_cost(state)]
 	temper_button.disabled = not state.has_blade or temper_level >= 5 or int(state.materials.get("dragon_ash", 0)) < 1 or state.gold < economy.temper_cost(state)
+	var armor_level := state.dragon_armor_level
+	var armor_cost := economy.dragon_armor_cost(state)
+	scale_upgrade_button.text = "ЧЕШУЙЧАТЫЙ ДОСПЕХ • УР. %d/5 • %d золота + 1 чешуя" % [armor_level, armor_cost]
+	scale_upgrade_button.disabled = armor_level >= 5 or int(state.materials.get("dragon_scales", 0)) < 1 or state.gold < armor_cost
+	var void_level := state.void_mastery_level
+	var void_cost := economy.void_mastery_cost(state)
+	void_upgrade_button.text = "ЗНАНИЕ ПУСТОТЫ • УР. %d/5 • %d золота + 1 ядро" % [void_level, void_cost]
+	void_upgrade_button.disabled = void_level >= 5 or int(state.materials.get("void_cores", 0)) < 1 or state.gold < void_cost
 	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
 	weapon_select_button.text = "СЛЕДУЮЩАЯ ЗАГОТОВКА: %s" % str(selected.name)
 	weapon_select_button.disabled = weapon_system.unlocked(state).size() <= 1

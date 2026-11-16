@@ -35,6 +35,7 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 		damage = 16.0 + float(weapon.base_value) * 0.32 + state.quality * 0.42
 		damage *= float(weapon.value_multiplier) * (1.0 + float(state.relics.get("dragon_tooth", 0)) * 0.08)
 		damage *= 1.0 + float(state.weapon_temper_levels.get(state.weapon_id, 0)) * 0.10
+		damage *= 1.0 + float(state.void_mastery_level) * 0.12
 		if ability == "spark_dance":
 			damage *= 1.18
 		elif ability == "ember_echo":
@@ -94,6 +95,7 @@ func act(state: AshenGameState, action: String) -> Dictionary:
 			avoided = action == "dodge"
 	if action == "guard":
 		incoming *= 0.34
+	incoming *= 1.0 - float(state.dragon_armor_level) * 0.08
 	if ability == "dragon_hide":
 		incoming *= 0.72
 	if ability == "frost_shell":
