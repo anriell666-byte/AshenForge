@@ -114,7 +114,7 @@ func _build_screen() -> void:
 	column.add_child(menu_button)
 
 	var spacer_top := Control.new()
-	spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer_top.custom_minimum_size.y = 8
 	column.add_child(spacer_top)
 
 	var panel := PanelContainer.new()
@@ -295,14 +295,69 @@ func _build_screen() -> void:
 		upgrade_row.add_child(upgrade_button)
 		upgrade_buttons.append(upgrade_button)
 
+	var game_tabs := TabContainer.new()
+	game_tabs.custom_minimum_size = Vector2(0, 430)
+	game_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(game_tabs)
+
+	var workshop_scroll := ScrollContainer.new()
+	workshop_scroll.name = "МАСТЕРСКАЯ"
+	workshop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	workshop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	game_tabs.add_child(workshop_scroll)
+	var workshop_column := VBoxContainer.new()
+	workshop_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	workshop_column.add_theme_constant_override("separation", 7)
+	workshop_scroll.add_child(workshop_column)
+
+	var hunt_scroll := ScrollContainer.new()
+	hunt_scroll.name = "ОХОТА"
+	hunt_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hunt_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	game_tabs.add_child(hunt_scroll)
+	var hunt_column := VBoxContainer.new()
+	hunt_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hunt_column.add_theme_constant_override("separation", 7)
+	hunt_scroll.add_child(hunt_column)
+
+	var hall_scroll := ScrollContainer.new()
+	hall_scroll.name = "ЗАЛ СЛАВЫ"
+	hall_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hall_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	game_tabs.add_child(hall_scroll)
+	var hall_column := VBoxContainer.new()
+	hall_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hall_column.add_theme_constant_override("separation", 7)
+	hall_scroll.add_child(hall_column)
+
+	for control in [merchant_button, merchant_panel, relic_button, temper_button, scale_upgrade_button, void_upgrade_button]:
+		control.get_parent().remove_child(control)
+		workshop_column.add_child(control)
+	for control in craft_buttons:
+		control.get_parent().remove_child(control)
+		workshop_column.add_child(control)
+	upgrade_row.get_parent().remove_child(upgrade_row)
+	workshop_column.add_child(upgrade_row)
+
+	material_label.get_parent().remove_child(material_label)
+	hunt_column.add_child(material_label)
+	for control in [item_inventory_label, tribute_button, battle_button]:
+		control.get_parent().remove_child(control)
+		hunt_column.add_child(control)
+	for control in item_buttons:
+		control.get_parent().remove_child(control)
+		hunt_column.add_child(control)
+	achievement_label.get_parent().remove_child(achievement_label)
+	hall_column.add_child(achievement_label)
+
 	var footer := Label.new()
-	footer.text = "КОНТРАКТ • РЕЛИКВИИ • ТОРГОВЕЦ • ДРАКОН"
+	footer.text = "КОВКА • РАЗВИТИЕ • ОХОТА • ЛЕГЕНДЫ"
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_color_override("font_color", Color("#9d929f"))
 	column.add_child(footer)
 
 	var spacer_bottom := Control.new()
-	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer_bottom.custom_minimum_size.y = 8
 	column.add_child(spacer_bottom)
 	_build_battle_overlay()
 	forge_ui.visible = false
@@ -605,7 +660,7 @@ func _update_battle_ui() -> void:
 
 func _panel_style() -> StyleBox:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.045, 0.065, 0.94)
+	style.bg_color = Color(0.055, 0.045, 0.065, 0.82)
 	style.border_color = Color("#66515a")
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(12)
