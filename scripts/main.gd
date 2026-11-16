@@ -54,12 +54,18 @@ var merchant_panel: PanelContainer
 var merchant_status: Label
 var merchant_offer_labels: Array[Label] = []
 var merchant_buy_buttons: Array[Button] = []
+var menu_overlay: PanelContainer
+var settings_overlay: PanelContainer
+var continue_button: Button
+var autosave_toggle: CheckButton
+var autosave_enabled: bool = true
+var game_started: bool = false
 
 func _ready() -> void:
 	randomize()
-	SaveManager.load_game(state)
+	autosave_enabled = SaveManager.load_autosave_setting()
 	_build_screen()
-	_refresh()
+	_build_start_menu()
 
 func _build_screen() -> void:
 	forge_view = FORGE_SCENE.instantiate()
@@ -86,6 +92,10 @@ func _build_screen() -> void:
 	header_label.add_theme_font_size_override("font_size", 29)
 	header_label.add_theme_color_override("font_color", Color("#f0d6b2"))
 	column.add_child(header_label)
+	var menu_button := _make_button("☰  МЕНЮ / СОХРАНЕНИЕ")
+	menu_button.custom_minimum_size.y = 40
+	menu_button.pressed.connect(_open_pause_menu)
+	column.add_child(menu_button)
 
 	var spacer_top := Control.new()
 	spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -243,7 +253,165 @@ func _build_screen() -> void:
 	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(spacer_bottom)
 	_build_battle_overlay()
+	forge_ui.visible = false
 
+
+func _build_start_menu() -> void:
+	menu_overlay = PanelContainer.new()
+	menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu_overlay.add_theme_stylebox_override("panel", _panel_style())
+	add_child(menu_overlay)
+	var menu_margin := MarginContainer.new()
+	menu_margin.add_theme_constant_override("margin_left", 34)
+	menu_margin.add_theme_constant_override("margin_right", 34)
+	menu_margin.add_theme_constant_override("margin_top", 70)
+	menu_margin.add_theme_constant_override("margin_bottom", 70)
+	menu_overlay.add_child(menu_margin)
+	var menu_column := VBoxContainer.new()
+	menu_column.add_theme_constant_override("separation", 16)
+	menu_margin.add_child(menu_column)
+	var menu_space := Control.new()
+	menu_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	menu_column.add_child(menu_space)
+	var title := Label.new()
+	title.text = "ASHENFORGE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_color_override("font_color", Color("#f0c18e"))
+	menu_column.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "КУЗНИЦА, ГДЕ РОЖДАЮТСЯ ЛЕГЕНДЫ"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 12)
+	subtitle.add_theme_color_override("font_color", Color("#c6a6a0"))
+	menu_column.add_child(subtitle)
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 24
+	menu_column.add_child(gap)
+	continue_button = _make_button("ПРОДОЛЖИТЬ")
+	continue_button.pressed.connect(_continue_game)
+	menu_column.add_child(continue_button)
+	var new_game_button := _make_button("НОВАЯ ИГРА")
+	new_game_button.pressed.connect(_confirm_new_game)
+	menu_column.add_child(new_game_button)
+	var settings_button := _make_button("НАСТРОЙКИ")
+	settings_button.pressed.connect(_open_settings)
+	menu_column.add_child(settings_button)
+	var bottom := Control.new()
+	bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	menu_column.add_child(bottom)
+	settings_overlay = PanelContainer.new()
+	settings_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings_overlay.add_theme_stylebox_override("panel", _panel_style())
+	settings_overlay.visible = false
+	add_child(settings_overlay)
+	var settings_margin := MarginContainer.new()
+	settings_margin.add_theme_constant_override("margin_left", 30)
+	settings_margin.add_theme_constant_override("margin_right", 30)
+	settings_margin.add_theme_constant_override("margin_top", 100)
+	settings_margin.add_theme_constant_override("margin_bottom", 100)
+	settings_overlay.add_child(settings_margin)
+	var settings_column := VBoxContainer.new()
+	settings_column.add_theme_constant_override("separation", 14)
+	settings_margin.add_child(settings_column)
+	var settings_title := Label.new()
+	settings_title.text = "НАСТРОЙКИ"
+	settings_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_title.add_theme_font_size_override("font_size", 26)
+	settings_title.add_theme_color_override("font_color", Color("#f0c18e"))
+	settings_column.add_child(settings_title)
+	autosave_toggle = CheckButton.new()
+	autosave_toggle.text = "Автоматически сохранять прогресс"
+	autosave_toggle.button_pressed = autosave_enabled
+	autosave_toggle.toggled.connect(_on_autosave_toggled)
+	settings_column.add_child(autosave_toggle)
+	var settings_note := Label.new()
+	settings_note.text = "Сохранение хранится на устройстве. Ручное сохранение доступно в игровом меню."
+	settings_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	settings_note.add_theme_font_size_override("font_size", 13)
+	settings_note.add_theme_color_override("font_color", Color("#c6b9b0"))
+	settings_column.add_child(settings_note)
+	var settings_spacer := Control.new()
+	settings_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	settings_column.add_child(settings_spacer)
+	var save_now_button := _make_button("СОХРАНИТЬ СЕЙЧАС")
+	save_now_button.pressed.connect(_save_now)
+	settings_column.add_child(save_now_button)
+	var settings_back := _make_button("НАЗАД")
+	settings_back.pressed.connect(_close_settings)
+	settings_column.add_child(settings_back)
+	var confirm_dialog := ConfirmationDialog.new()
+	confirm_dialog.name = "NewGameConfirmation"
+	confirm_dialog.dialog_text = "Начать новую игру? Текущее сохранение будет заменено."
+	confirm_dialog.confirmed.connect(_start_new_game)
+	add_child(confirm_dialog)
+	_refresh_menu_buttons()
+
+func _refresh_menu_buttons() -> void:
+	if continue_button != null:
+		continue_button.disabled = not SaveManager.has_save()
+
+func _confirm_new_game() -> void:
+	var dialog := get_node_or_null("NewGameConfirmation") as ConfirmationDialog
+	if dialog != null:
+		dialog.popup_centered()
+
+func _start_new_game() -> void:
+	state = GameState.new()
+	SaveManager.delete_save()
+	game_started = true
+	message_label.text = "Новая кузнечная история начинается."
+	_resume_game()
+	_save_now()
+
+func _continue_game() -> void:
+	if not SaveManager.has_save():
+		return
+	state = GameState.new()
+	SaveManager.load_game(state)
+	game_started = true
+	message_label.text = "Сохранение загружено. Возвращаемся к работе."
+	_resume_game()
+	_refresh()
+
+func _open_pause_menu() -> void:
+	if autosave_enabled and game_started:
+		if autosave_enabled and game_started:
+		SaveManager.save_game(state)
+	menu_overlay.visible = true
+	settings_overlay.visible = false
+	forge_ui.visible = false
+	battle_overlay.visible = false
+	dragon_view.visible = false
+	_refresh_menu_buttons()
+
+func _resume_game() -> void:
+	menu_overlay.visible = false
+	settings_overlay.visible = false
+	forge_ui.visible = not state.battle_active
+	battle_overlay.visible = state.battle_active
+	dragon_view.visible = state.battle_active
+	_refresh()
+
+func _open_settings() -> void:
+	settings_overlay.visible = true
+	menu_overlay.visible = false
+	autosave_toggle.button_pressed = autosave_enabled
+
+func _close_settings() -> void:
+	settings_overlay.visible = false
+	menu_overlay.visible = true
+	_refresh_menu_buttons()
+
+func _on_autosave_toggled(enabled: bool) -> void:
+	autosave_enabled = enabled
+	SaveManager.save_settings(autosave_enabled)
+
+func _save_now() -> void:
+	if not game_started:
+		return
+	SaveManager.save_game(state)
+	message_label.text = "Прогресс сохранён."
 
 func _build_battle_overlay() -> void:
 	dragon_view = Control.new()
