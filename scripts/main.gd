@@ -403,6 +403,74 @@ func _build_screen() -> void:
 	var spacer_bottom := Control.new()
 	spacer_bottom.custom_minimum_size.y = 8
 	column.add_child(spacer_bottom)
+
+	# Immersive viewport composition: compact top bar, open scene, translucent bottom HUD.
+	for child in column.get_children():
+		column.remove_child(child)
+	var top_bar := HBoxContainer.new()
+	top_bar.add_theme_constant_override("separation", 7)
+	column.add_child(top_bar)
+	header_label.add_theme_font_size_override("font_size", 20)
+	header_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	top_bar.add_child(header_label)
+	menu_button.custom_minimum_size = Vector2(48, 40)
+	menu_button.text = "☰"
+	top_bar.add_child(menu_button)
+	var rotate_left := camera_row.get_child(0) as Button
+	var rotate_right := camera_row.get_child(1) as Button
+	rotate_left.text = "◀"
+	rotate_right.text = "▶"
+	rotate_left.custom_minimum_size = Vector2(38, 40)
+	rotate_right.custom_minimum_size = Vector2(38, 40)
+	top_bar.add_child(rotate_left)
+	top_bar.add_child(rotate_right)
+
+	var scene_spacer := Control.new()
+	scene_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(scene_spacer)
+
+	panel.add_theme_stylebox_override("panel", _hud_panel_style())
+	panel_column.add_theme_constant_override("separation", 3)
+	panel_column.remove_child(relic_label)
+	panel_column.remove_child(material_label)
+	weapon_label.add_theme_font_size_override("font_size", 16)
+	stats_label.add_theme_font_size_override("font_size", 11)
+	progression_label.add_theme_font_size_override("font_size", 11)
+	ability_label.add_theme_font_size_override("font_size", 10)
+	frenzy_label.add_theme_font_size_override("font_size", 11)
+	for bar in [heat_bar, quality_bar, durability_bar]:
+		bar.custom_minimum_size.y = 10
+	column.add_child(panel)
+	message_label.custom_minimum_size.y = 24
+	message_label.add_theme_font_size_override("font_size", 11)
+	column.add_child(message_label)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 7)
+	column.add_child(action_row)
+	strike_button.custom_minimum_size.y = 50
+	strike_button.text = "⚒  УДАРИТЬ МОЛОТОМ"
+	strike_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_child(strike_button)
+	var side_actions := VBoxContainer.new()
+	side_actions.add_theme_constant_override("separation", 3)
+	action_row.add_child(side_actions)
+	cool_button.custom_minimum_size.y = 23
+	sell_button.custom_minimum_size.y = 23
+	side_actions.add_child(cool_button)
+	side_actions.add_child(sell_button)
+	timing_meter.custom_minimum_size = Vector2(0, 30)
+	column.add_child(timing_meter)
+	game_tabs.custom_minimum_size = Vector2(0, 176)
+	game_tabs.size_flags_vertical = Control.SIZE_SHRINK_END
+	column.add_child(game_tabs)
+
+	workshop_column.add_child(weapon_select_button)
+	workshop_column.add_child(hang_button)
+	hunt_column.add_child(relic_label)
+	hunt_column.add_child(material_label)
+	column.add_theme_constant_override("separation", 4)
 	_build_battle_overlay()
 	forge_ui.visible = false
 
