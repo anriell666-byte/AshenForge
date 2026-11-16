@@ -117,23 +117,27 @@ func _draw() -> void:
 	draw_rect(Rect2(-s.x*.39,-s.y*.29,s.x*.78,s.y*.018), Color("#5d3c31"))
 	draw_rect(Rect2(-s.x*.39,-s.y*.265,s.x*.78,s.y*.014), Color("#2d2023"))
 	var wall_count := mini(wall_weapons.size(), 8)
+	var wall_positions: Array[Vector2] = []
 	for i in range(8):
 		var wx := -s.x*.32 + float(i%4)*s.x*.213
 		var wy := -s.y*.205 if i<4 else -s.y*.055
 		draw_circle(Vector2(wx,wy), 5.0, Color("#c18a52"))
 		if i < wall_count:
-			var trophy: Dictionary = wall_weapons[i]
-			_draw_weapon(Vector2(wx,wy+ s.y*.055), s.y*.105, str(trophy.get("weapon_id","coal_blade")), float(trophy.get("quality",0.0)), bool(trophy.get("awakened",false)), false)
+			wall_positions.append(Vector2(wx,wy+s.y*.055))
 		else:
 			draw_line(Vector2(wx,wy+8),Vector2(wx,wy+25),Color("#75523d"),3.0)
 	# Anvil pedestal and anvil top, with top/side faces to sell the volume.
 	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.29,s.y*.285),Vector2(s.x*.29,s.y*.285),Vector2(s.x*.24,s.y*.37),Vector2(-s.x*.24,s.y*.37)]), Color("#51434a"))
 	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.36,s.y*.255),Vector2(s.x*.36,s.y*.255),Vector2(s.x*.29,s.y*.305),Vector2(-s.x*.29,s.y*.305)]), Color("#a3a0a4"))
 	draw_line(Vector2(-s.x*.34,s.y*.26),Vector2(s.x*.34,s.y*.26),Color("#e2d6ca"),3.0)
+	# Display the wall trophies after the room geometry so each weapon keeps its depth transform.
+	for wall_index in range(wall_positions.size()):
+		var trophy: Dictionary = wall_weapons[wall_index]
+		_draw_weapon(wall_positions[wall_index], s.y*.105, str(trophy.get("weapon_id","coal_blade")), float(trophy.get("quality",0.0)), bool(trophy.get("awakened",false)), false)
 	# Active blade lies across the anvil; its silhouette evolves with quality.
 	_draw_weapon(Vector2(0,s.y*.247), s.x*.36, current_weapon_id, quality_level, blade_awakened, true)
 	# Hammer with a heavy handle and metal head.
-	var pivot := Vector2(s.x*.255,s.y*.16)
+	var pivot := _camera_point(Vector2(s.x*.255,s.y*.16))
 	draw_set_transform(pivot, hammer_angle, Vector2.ONE)
 	draw_rect(Rect2(-s.x*.014,-s.y*.19,s.x*.028,s.y*.21), Color("#80583d"))
 	draw_colored_polygon(PackedVector2Array([Vector2(-s.x*.09,-s.y*.22),Vector2(s.x*.09,-s.y*.22),Vector2(s.x*.075,-s.y*.15),Vector2(-s.x*.075,-s.y*.15)]), Color("#aaa4a9"))
@@ -147,8 +151,12 @@ func _draw() -> void:
 			var p := Vector2(cx,s.y*.665)+Vector2(cos(a),sin(a))*radius
 			draw_circle(p, (2.0+awakening_flash*2.5)*sparks, Color("#ffd18a") if awakening_flash>0.0 else Color("#ff9a43"))
 	# Rotation hint.
-	draw_string(ThemeDB.fallback_font, Vector2(18,s.y*.49), "↶  ПОВОРОТ КУЗНИЦЫ", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.88,0.72,0.56,0.72))
+	draw_string(ThemeDB.fallback_font, Vector2(18,s.y*.49), "СВАЙП ОТ КРАЯ ЭКРАНА • ПОВОРОТ КУЗНИЦЫ", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.88,0.72,0.56,0.72))
 	draw_set_transform(Vector2.ZERO,0.0,Vector2.ONE)
+
+func _camera_point(local_point: Vector2) -> Vector2:
+	var origin := Vector2(size.x*0.5,size.y*0.42)
+	return origin + local_point.rotated(camera_yaw*0.22)
 
 func _draw_weapon(center: Vector2, length: float, weapon_id: String, quality: float, awakened: bool, horizontal: bool) -> void:
 	var blade_color := Color("#b8c3c9")
@@ -176,7 +184,7 @@ func _draw_weapon(center: Vector2, length: float, weapon_id: String, quality: fl
 	if quality >= 60.0: tier=2
 	if quality >= 85.0: tier=3
 	var angle := PI*0.5 if horizontal else 0.0
-	draw_set_transform(center,angle,Vector2.ONE)
+	draw_set_transform(_camera_point(center),angle+camera_yaw*0.22,Vector2.ONE)
 	var blade_len := length*(0.62+float(tier)*0.09)
 	var half_width := length*(0.055+float(tier)*0.009)
 	if awakened:

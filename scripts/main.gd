@@ -115,6 +115,21 @@ func _build_screen() -> void:
 	menu_button.custom_minimum_size.y = 40
 	menu_button.pressed.connect(_open_pause_menu)
 	column.add_child(menu_button)
+	var camera_row := HBoxContainer.new()
+	camera_row.add_theme_constant_override("separation", 8)
+	column.add_child(camera_row)
+	var camera_left := _make_button("◀  ПОВОРОТ ВЛЕВО")
+	camera_left.custom_minimum_size.y = 38
+	camera_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	camera_left.add_theme_font_size_override("font_size", 12)
+	camera_left.pressed.connect(func(): forge_view.rotate_camera(-1.0))
+	camera_row.add_child(camera_left)
+	var camera_right := _make_button("ПОВОРОТ ВПРАВО  ▶")
+	camera_right.custom_minimum_size.y = 38
+	camera_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	camera_right.add_theme_font_size_override("font_size", 12)
+	camera_right.pressed.connect(func(): forge_view.rotate_camera(1.0))
+	camera_row.add_child(camera_right)
 
 	var spacer_top := Control.new()
 	spacer_top.custom_minimum_size.y = 8
