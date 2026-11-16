@@ -712,7 +712,7 @@ func _refresh() -> void:
 		var ash_cost: int = int(recipe.get("recipe_ash", 0))
 		var scale_cost: int = int(recipe.get("recipe_scales", 0))
 		var core_cost: int = int(recipe.get("recipe_cores", 0))
-		var short_name := ["ДВУРУЧНИК ПЕПЛА", "КОПЬЁ РАЗЛОМА", "ПАРНЫЕ КЛИНКИ"][index]
+		var short_name: String = ["ДВУРУЧНИК ПЕПЛА", "КОПЬЁ РАЗЛОМА", "ПАРНЫЕ КЛИНКИ"][index]
 		craft_buttons[index].text = "%s • %d зол. • П%d Ч%d Я%d" % [short_name, gold_cost, ash_cost, scale_cost, core_cost] if not owned else "РЕЦЕПТ ОСВОЕН: %s" % short_name
 		craft_buttons[index].tooltip_text = str(recipe.get("description", ""))
 		craft_buttons[index].disabled = owned or state.gold < gold_cost or int(state.materials.get("dragon_ash", 0)) < ash_cost or int(state.materials.get("dragon_scales", 0)) < scale_cost or int(state.materials.get("void_cores", 0)) < core_cost
