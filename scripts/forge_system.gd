@@ -8,18 +8,20 @@ func strike(state: AshenGameState) -> Dictionary:
 	if not state.has_blade:
 		return {"ok": false, "message": "Сначала возьми новую заготовку."}
 
+	var relics = preload("res://scripts/relic_system.gd").new()
 	var frenzy_this_hit := state.frenzy_hits > 0
 	if state.frenzy_ready and not frenzy_this_hit:
 		state.frenzy_ready = false
-		state.frenzy_hits = FRENZY_SAFE_HITS
+		state.frenzy_hits = FRENZY_SAFE_HITS + relics.frenzy_bonus_hits(state)
 		frenzy_this_hit = true
 
 	var luck_bonus := float(state.upgrades.get("luck", 0)) * 0.025
+	var destruction_chance := maxf(0.02, 0.10 - luck_bonus - relics.destruction_reduction(state))
 	var roll := randf()
 	var outcome := "good"
 	if frenzy_this_hit:
 		outcome = "frenzy"
-	elif roll < maxf(0.04, 0.10 - luck_bonus):
+	elif roll < destruction_chance:
 		outcome = "destruction"
 	elif roll < 0.28 - luck_bonus:
 		outcome = "bad"
@@ -28,9 +30,11 @@ func strike(state: AshenGameState) -> Dictionary:
 
 	state.strikes_on_blade += 1
 	state.heat = minf(100.0, state.heat + randf_range(5.0, 11.0))
-
 	var power := randf_range(6.0, 11.0)
 	var wear := randf_range(5.0, 9.0)
+	var quality_bonus := relics.quality_bonus(state)
+	if _has_synergy(state, relics):
+		quality_bonus += 0.75
 	var message := ""
 
 	match outcome:
@@ -43,16 +47,16 @@ func strike(state: AshenGameState) -> Dictionary:
 			state.durability = maxf(1.0, state.durability - wear * 1.4)
 			message = "Неудачный удар. Качество клинка снизилось."
 		"great":
-			state.quality = minf(100.0, state.quality + power * 2.0)
+			state.quality = minf(100.0, state.quality + power * 2.0 + quality_bonus)
 			state.durability = maxf(1.0, state.durability - wear * 0.65)
 			message = "ВЕЛИКОЛЕПНО! Металл принял идеальную форму."
 		"frenzy":
-			state.quality = minf(100.0, state.quality + power * 1.65)
+			state.quality = minf(100.0, state.quality + power * 1.65 + quality_bonus)
 			state.durability = maxf(1.0, state.durability - wear * 0.35)
 			state.frenzy_hits = maxi(0, state.frenzy_hits - 1)
 			message = "FRENZY! Молот не знает промаха — клинок крепнет."
 		_:
-			state.quality = minf(100.0, state.quality + power)
+			state.quality = minf(100.0, state.quality + power + quality_bonus)
 			state.durability = maxf(1.0, state.durability - wear)
 			message = "Удачный удар. Качество растёт."
 
@@ -61,13 +65,14 @@ func strike(state: AshenGameState) -> Dictionary:
 		message += " Шквал заряжен! Следующий удар активирует FRENZY."
 
 	state.last_forge_result = outcome
-	return {
-		"ok": true,
-		"outcome": outcome,
-		"frenzy": frenzy_this_hit,
-		"broken": not state.has_blade,
-		"message": message
-	}
+	return {"ok": true, "outcome": outcome, "frenzy": frenzy_this_hit, "broken": not state.has_blade, "message": message}
+
+func _has_synergy(state: AshenGameState, relics) -> bool:
+	var found := 0
+	for relic_id in state.relics:
+		if int(state.relics[relic_id]) > 0:
+			found += 1
+	return found >= 2
 
 func cool(state: AshenGameState) -> String:
 	if not state.has_blade:

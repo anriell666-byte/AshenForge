@@ -19,6 +19,7 @@ var frenzy_ready: bool = false
 var frenzy_hits: int = 0
 var last_forge_result: String = ""
 var upgrades: Dictionary = {"bellows": 0, "anvil": 0, "luck": 0}
+var relics: Dictionary = {}
 
 func to_dict() -> Dictionary:
 	return {
@@ -29,7 +30,8 @@ func to_dict() -> Dictionary:
 		"weapon_name": weapon_name, "best_sale": best_sale,
 		"total_blades": total_blades, "strikes_on_blade": strikes_on_blade,
 		"frenzy_ready": frenzy_ready, "frenzy_hits": frenzy_hits,
-		"last_forge_result": last_forge_result, "upgrades": upgrades
+		"last_forge_result": last_forge_result, "upgrades": upgrades,
+		"relics": relics
 	}
 
 func from_dict(data: Dictionary) -> void:
@@ -53,3 +55,6 @@ func from_dict(data: Dictionary) -> void:
 	var saved_upgrades = data.get("upgrades", upgrades)
 	if saved_upgrades is Dictionary:
 		upgrades = saved_upgrades
+	var saved_relics = data.get("relics", relics)
+	if saved_relics is Dictionary:
+		relics = saved_relics

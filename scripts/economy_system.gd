@@ -2,12 +2,16 @@ extends RefCounted
 class_name AshenEconomySystem
 
 func blade_value(state: AshenGameState) -> int:
-	return maxi(1, int(9.0 + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5))
+	var relics = preload("res://scripts/relic_system.gd").new()
+	var base := 9.0 + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5
+	var synergy := relics.synergy_bonus(state)
+	return maxi(1, int(base * relics.sale_multiplier(state) * (1.0 + synergy)))
 
 func sell_blade(state: AshenGameState) -> Dictionary:
 	if not state.has_blade:
 		return {"ok": false, "message": "Нечего продавать. Возьми новую заготовку."}
-	var value := blade_value(state)
+	var relics = preload("res://scripts/relic_system.gd").new()
+	var value := blade_value(state) + relics.extra_sale_gold(state)
 	state.gold += value
 	state.best_sale = maxi(state.best_sale, value)
 	state.total_blades += 1

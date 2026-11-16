@@ -3,18 +3,21 @@ extends Control
 const GameState = preload("res://scripts/game_state.gd")
 const ForgeSystem = preload("res://scripts/forge_system.gd")
 const EconomySystem = preload("res://scripts/economy_system.gd")
+const RelicSystem = preload("res://scripts/relic_system.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
 
 var state = GameState.new()
 var forge = ForgeSystem.new()
 var economy = EconomySystem.new()
+var relic_machine = RelicSystem.new()
 var forge_view: Control
 var header_label: Label
 var weapon_label: Label
 var stats_label: Label
 var progression_label: Label
 var frenzy_label: Label
+var relic_label: Label
 var heat_bar: ProgressBar
 var quality_bar: ProgressBar
 var durability_bar: ProgressBar
@@ -24,6 +27,7 @@ var sell_button: Button
 var tribute_button: Button
 var cool_button: Button
 var upgrade_button: Button
+var relic_button: Button
 
 func _ready() -> void:
 	randomize()
@@ -92,6 +96,13 @@ func _build_screen() -> void:
 	heat_bar = _make_bar(panel_column, "Накал клинка", Color("#e67e45"))
 	quality_bar = _make_bar(panel_column, "Качество клинка", Color("#d7c18e"))
 	durability_bar = _make_bar(panel_column, "Прочность", Color("#8fae9b"))
+	
+	relic_label = Label.new()
+	relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	relic_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	relic_label.add_theme_font_size_override("font_size", 12)
+	relic_label.add_theme_color_override("font_color", Color("#c6a6e0"))
+	panel_column.add_child(relic_label)
 
 	message_label = Label.new()
 	message_label.text = "Куй клинок. Десятый удар зарядит шквал FRENZY."
@@ -117,6 +128,10 @@ func _build_screen() -> void:
 	sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sell_button.pressed.connect(_on_sell)
 	row.add_child(sell_button)
+
+	relic_button = _make_button("Пожертвовать клинок машине реликвий")
+	relic_button.pressed.connect(_on_relic)
+	column.add_child(relic_button)
 
 	tribute_button = _make_button("Принести дань дракону")
 	tribute_button.pressed.connect(_on_tribute)
@@ -201,6 +216,13 @@ func _on_sell() -> void:
 		forge.start_new_blade(state)
 	_refresh()
 
+func _on_relic() -> void:
+	var result: Dictionary = relic_machine.sacrifice_blade(state)
+	message_label.text = str(result.get("message", ""))
+	if bool(result.get("ok", false)):
+		forge.start_new_blade(state)
+	_refresh()
+
 func _on_tribute() -> void:
 	var result: Dictionary = economy.pay_tribute(state)
 	message_label.text = str(result.get("message", ""))
@@ -225,9 +247,11 @@ func _refresh() -> void:
 	heat_bar.value = state.heat
 	quality_bar.value = state.quality
 	durability_bar.value = state.durability
+	relic_label.text = relic_machine.summary(state)
 	strike_button.disabled = not state.has_blade
 	sell_button.disabled = not state.has_blade
 	cool_button.disabled = not state.has_blade
+	relic_button.disabled = not state.has_blade
 	tribute_button.disabled = state.gold < state.tribute_goal or state.contract_complete
 	upgrade_button.disabled = state.gold < 45 * (int(state.upgrades.get("bellows", 0)) + 1) or int(state.upgrades.get("bellows", 0)) >= 5
 	upgrade_button.text = "Улучшить мехи • %d золота" % (45 * (int(state.upgrades.get("bellows", 0)) + 1))
