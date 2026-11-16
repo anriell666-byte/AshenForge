@@ -743,7 +743,7 @@ func _refresh() -> void:
 	item_inventory_label.text = "БОЕВОЙ ЗАПАС: Эликсиры %d • Бомбы %d • Руны %d" % [int(state.battle_items.get("healing_flask", 0)), int(state.battle_items.get("dragon_bomb", 0)), int(state.battle_items.get("ward_rune", 0))]
 	var new_achievements: Array[String] = achievement_system.claim_ready(state)
 	if not new_achievements.is_empty():
-		message_label.text = "ДОСТИЖЕНИЕ! " + " • ".join(new_achievements)
+		message_label.text = "ДОСТИЖЕНИЕ! " + str(new_achievements[0]) + (" и ещё %d" % (new_achievements.size() - 1) if new_achievements.size() > 1 else "")
 	achievement_label.text = achievement_system.journal(state)
 	var item_ids: Array[String] = ["healing_flask", "dragon_bomb", "ward_rune"]
 	var item_titles: Array[String] = ["ЭЛИКСИР ЖИЗНИ", "ДРАКОНЬЯ БОМБА", "РУНА ЗАЩИТЫ"]
