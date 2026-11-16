@@ -287,6 +287,7 @@ func _build_screen() -> void:
 	column.add_child(item_inventory_label)
 	wall_panel = PanelContainer.new()
 	wall_panel.add_theme_stylebox_override("panel", _panel_style())
+	column.add_child(wall_panel)
 	var wall_column := VBoxContainer.new()
 	wall_column.add_theme_constant_override("separation", 5)
 	wall_panel.add_child(wall_column)

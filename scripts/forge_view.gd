@@ -59,7 +59,7 @@ func _input(event: InputEvent) -> void:
 			drag_active = true
 		else:
 			if drag_active:
-				var delta_x := event.position.x - drag_origin.x
+				var delta_x: float = float(event.position.x - drag_origin.x)
 				if absf(delta_x) > 42.0 and absf(delta_x) > absf(event.position.y - drag_origin.y) * 1.25:
 					if drag_origin.x < 105.0 or drag_origin.x > size.x - 105.0:
 						rotate_camera(-signf(delta_x))
@@ -70,7 +70,7 @@ func _input(event: InputEvent) -> void:
 			drag_active = true
 		else:
 			if drag_active:
-				var delta_mouse := event.position.x - drag_origin.x
+				var delta_mouse: float = float(event.position.x - drag_origin.x)
 				if absf(delta_mouse) > 42.0 and absf(delta_mouse) > absf(event.position.y - drag_origin.y) * 1.25:
 					if drag_origin.x < 105.0 or drag_origin.x > size.x - 105.0:
 						rotate_camera(-signf(delta_mouse))
