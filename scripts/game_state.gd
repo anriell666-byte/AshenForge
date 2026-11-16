@@ -12,6 +12,8 @@ var quality: float = 8.0
 var durability: float = 100.0
 var has_blade: bool = true
 var weapon_name: String = "Угольный клинок"
+var weapon_id: String = "coal_blade"
+var selected_weapon_id: String = "coal_blade"
 var best_sale: int = 0
 var total_blades: int = 0
 var strikes_on_blade: int = 0
@@ -27,7 +29,8 @@ func to_dict() -> Dictionary:
 		"contract_days": contract_days, "contract_complete": contract_complete,
 		"tribute_goal": tribute_goal, "heat": heat, "quality": quality,
 		"durability": durability, "has_blade": has_blade,
-		"weapon_name": weapon_name, "best_sale": best_sale,
+		"weapon_name": weapon_name, "weapon_id": weapon_id,
+		"selected_weapon_id": selected_weapon_id, "best_sale": best_sale,
 		"total_blades": total_blades, "strikes_on_blade": strikes_on_blade,
 		"frenzy_ready": frenzy_ready, "frenzy_hits": frenzy_hits,
 		"last_forge_result": last_forge_result, "upgrades": upgrades,
@@ -46,6 +49,8 @@ func from_dict(data: Dictionary) -> void:
 	durability = float(data.get("durability", durability))
 	has_blade = bool(data.get("has_blade", has_blade))
 	weapon_name = str(data.get("weapon_name", weapon_name))
+	weapon_id = str(data.get("weapon_id", weapon_id))
+	selected_weapon_id = str(data.get("selected_weapon_id", weapon_id))
 	best_sale = int(data.get("best_sale", best_sale))
 	total_blades = int(data.get("total_blades", total_blades))
 	strikes_on_blade = int(data.get("strikes_on_blade", strikes_on_blade))

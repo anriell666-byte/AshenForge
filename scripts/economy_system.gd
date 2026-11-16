@@ -3,9 +3,11 @@ class_name AshenEconomySystem
 
 func blade_value(state: AshenGameState) -> int:
 	var relics = preload("res://scripts/relic_system.gd").new()
-	var base := 9.0 + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5
+	var weapons = preload("res://scripts/weapon_system.gd").new()
+	var weapon: Dictionary = weapons.get_weapon(state.weapon_id)
+	var base := float(weapon.base_value) + state.quality * 1.35 + state.durability * 0.24 + state.chapter * 1.5
 	var synergy := relics.synergy_bonus(state)
-	return maxi(1, int(base * relics.sale_multiplier(state) * (1.0 + synergy)))
+	return maxi(1, int(base * float(weapon.value_multiplier) * relics.sale_multiplier(state) * (1.0 + synergy)))
 
 func sell_blade(state: AshenGameState) -> Dictionary:
 	if not state.has_blade:
@@ -16,7 +18,7 @@ func sell_blade(state: AshenGameState) -> Dictionary:
 	state.best_sale = maxi(state.best_sale, value)
 	state.total_blades += 1
 	state.has_blade = false
-	return {"ok": true, "value": value, "message": "Клинок продан за %d золотых." % value}
+	return {"ok": true, "value": value, "message": "%s продан за %d золотых." % [state.weapon_name, value]}
 
 func pay_tribute(state: AshenGameState) -> Dictionary:
 	if state.contract_complete:

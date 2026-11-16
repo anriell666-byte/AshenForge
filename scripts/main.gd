@@ -4,6 +4,7 @@ const GameState = preload("res://scripts/game_state.gd")
 const ForgeSystem = preload("res://scripts/forge_system.gd")
 const EconomySystem = preload("res://scripts/economy_system.gd")
 const RelicSystem = preload("res://scripts/relic_system.gd")
+const WeaponSystem = preload("res://scripts/weapon_system.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
 const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
 
@@ -11,6 +12,7 @@ var state = GameState.new()
 var forge = ForgeSystem.new()
 var economy = EconomySystem.new()
 var relic_machine = RelicSystem.new()
+var weapon_system = WeaponSystem.new()
 var forge_view: Control
 var header_label: Label
 var weapon_label: Label
@@ -28,6 +30,7 @@ var tribute_button: Button
 var cool_button: Button
 var upgrade_button: Button
 var relic_button: Button
+var weapon_select_button: Button
 
 func _ready() -> void:
 	randomize()
@@ -96,7 +99,7 @@ func _build_screen() -> void:
 	heat_bar = _make_bar(panel_column, "Накал клинка", Color("#e67e45"))
 	quality_bar = _make_bar(panel_column, "Качество клинка", Color("#d7c18e"))
 	durability_bar = _make_bar(panel_column, "Прочность", Color("#8fae9b"))
-	
+
 	relic_label = Label.new()
 	relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	relic_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -111,6 +114,10 @@ func _build_screen() -> void:
 	message_label.custom_minimum_size.y = 52
 	message_label.add_theme_color_override("font_color", Color("#e4d5c4"))
 	column.add_child(message_label)
+
+	weapon_select_button = _make_button("СЛЕДУЮЩАЯ ЗАГОТОВКА")
+	weapon_select_button.pressed.connect(_on_cycle_weapon)
+	column.add_child(weapon_select_button)
 
 	strike_button = _make_button("УДАРИТЬ МОЛОТОМ")
 	strike_button.custom_minimum_size.y = 62
@@ -198,6 +205,12 @@ func _make_button(caption: String) -> Button:
 	button.add_theme_stylebox_override("pressed", hover)
 	return button
 
+func _on_cycle_weapon() -> void:
+	state.selected_weapon_id = weapon_system.next_weapon_id(state, state.selected_weapon_id)
+	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
+	message_label.text = "Выбрана следующая заготовка: %s. Текущий клинок не изменён." % str(selected.name)
+	_refresh()
+
 func _on_strike() -> void:
 	var result: Dictionary = forge.strike(state)
 	message_label.text = str(result.get("message", ""))
@@ -248,6 +261,9 @@ func _refresh() -> void:
 	quality_bar.value = state.quality
 	durability_bar.value = state.durability
 	relic_label.text = relic_machine.summary(state)
+	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
+	weapon_select_button.text = "СЛЕДУЮЩАЯ ЗАГОТОВКА: %s" % str(selected.name)
+	weapon_select_button.disabled = weapon_system.unlocked(state).size() <= 1
 	strike_button.disabled = not state.has_blade
 	sell_button.disabled = not state.has_blade
 	cool_button.disabled = not state.has_blade
