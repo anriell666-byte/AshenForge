@@ -317,7 +317,7 @@ func _on_leave_battle() -> void:
 	_refresh()
 
 func _update_battle_ui() -> void:
-	var in_battle := state.battle_active
+	var in_battle: bool = state.battle_active
 	battle_overlay.visible = in_battle
 	dragon_view.visible = in_battle
 	forge_ui.visible = not in_battle

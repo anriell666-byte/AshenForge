@@ -60,9 +60,16 @@ jobs:
           keytool -genkeypair -noprompt -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
 
       - name: Import project and validate scripts
+        shell: bash
         run: |
-          "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --editor --path . --import
-          "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path . --quit
+          set -o pipefail
+          GODOT="$HOME/godot/Godot_v4.4.1-stable_linux.x86_64"
+          "$GODOT" --headless --editor --path . --import 2>&1 | tee godot-import.log
+          "$GODOT" --headless --path . --quit 2>&1 | tee godot-runtime-check.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|ERROR: Failed to load" godot-import.log godot-runtime-check.log; then
+            echo "Godot script validation failed."
+            exit 1
+          fi
 
       - name: Export Android APK
         env:
