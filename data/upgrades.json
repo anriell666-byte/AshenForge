@@ -1,7 +1,0 @@
-{
-  "upgrades": [
-    {"id":"bellows","name":"Мехи","description":"Сильнее охлаждают металл после нажатия «Остудить».","base_cost":45,"max_level":5},
-    {"id":"anvil","name":"Закалённая наковальня","description":"Снижает износ клинка от ударов.","base_cost":60,"max_level":5},
-    {"id":"luck","name":"Кузнечное чутьё","description":"Повышает шанс критического удара.","base_cost":75,"max_level":5}
-  ]
-}

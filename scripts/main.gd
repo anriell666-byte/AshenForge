@@ -1,1063 +1,405 @@
-extends Control
+extends Node3D
 
-const GameState = preload("res://scripts/game_state.gd")
-const ForgeSystem = preload("res://scripts/forge_system.gd")
-const EconomySystem = preload("res://scripts/economy_system.gd")
-const RelicSystem = preload("res://scripts/relic_system.gd")
-const WeaponSystem = preload("res://scripts/weapon_system.gd")
-const MerchantSystem = preload("res://scripts/merchant_system.gd")
-const SaveManager = preload("res://scripts/save_manager.gd")
-const AchievementSystem = preload("res://scripts/achievement_system.gd")
-const FORGE_SCENE = preload("res://scenes/ForgeView.tscn")
-const DragonCombat = preload("res://scripts/dragon_combat.gd")
-const DRAGON_VIEW_SCRIPT = preload("res://scripts/dragon_arena_view.gd")
-const TIMING_METER_SCRIPT = preload("res://scripts/timing_meter.gd")
+const PlayerScript = preload("res://scripts/player.gd")
+const PropScript = preload("res://scripts/destructible.gd")
+const InfectedScript = preload("res://scripts/infected.gd")
+const JoystickScript = preload("res://scripts/touch_joystick.gd")
+const SAVE_PATH := "user://afterfall_save.json"
 
-var state = GameState.new()
-var forge = ForgeSystem.new()
-var economy = EconomySystem.new()
-var relic_machine = RelicSystem.new()
-var weapon_system = WeaponSystem.new()
-var merchant = MerchantSystem.new()
-var achievement_system = AchievementSystem.new()
-var dragon_combat = DragonCombat.new()
-var forge_ui: Control
-var dragon_view: Control
-var battle_overlay: PanelContainer
-var battle_button: Button
-var battle_title: Label
-var battle_status: Label
-var battle_message: String = "Пламя древнего существа освещает зал."
-var battle_intent: Label
-var dragon_health_bar: ProgressBar
-var player_health_bar: ProgressBar
-var forge_view: Control
-var header_label: Label
-var weapon_label: Label
-var stats_label: Label
-var progression_label: Label
-var ability_label: Label
-var frenzy_label: Label
-var relic_label: Label
-var material_label: Label
-var temper_button: Button
-var scale_upgrade_button: Button
-var void_upgrade_button: Button
-var craft_buttons: Array[Button] = []
-var item_buttons: Array[Button] = []
-var item_inventory_label: Label
-var wall_panel: PanelContainer
-var wall_slot_buttons: Array[Button] = []
-var hang_button: Button
-var achievement_label: Label
-var heat_bar: ProgressBar
-var quality_bar: ProgressBar
-var durability_bar: ProgressBar
+var player
+var joystick: Control
+var props: Array = []
+var infected: Array = []
+var inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0}
+var salvaged_ids: Array[String] = []
+var hud_label: Label
 var message_label: Label
-var strike_button: Button
-var timing_meter: Control
-var sell_button: Button
-var tribute_button: Button
-var cool_button: Button
-var upgrade_buttons: Array[Button] = []
-var relic_button: Button
-var weapon_select_button: Button
-var merchant_button: Button
-var merchant_panel: PanelContainer
-var merchant_status: Label
-var merchant_offer_labels: Array[Label] = []
-var merchant_buy_buttons: Array[Button] = []
-var menu_overlay: PanelContainer
-var settings_overlay: PanelContainer
-var continue_button: Button
-var menu_save_button: Button
-var autosave_toggle: CheckButton
-var autosave_enabled: bool = true
-var game_started: bool = false
+var health_bar: ProgressBar
+var stamina_bar: ProgressBar
+var message_time: float = 0.0
+var camp_position := Vector3(-9, 0, 10)
 
 func _ready() -> void:
-	randomize()
-	autosave_enabled = SaveManager.load_autosave_setting()
-	_build_screen()
-	_build_start_menu()
-
-func _build_screen() -> void:
-	forge_view = FORGE_SCENE.instantiate()
-	forge_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(forge_view)
-	move_child(forge_view, 0)
-
-	forge_ui = MarginContainer.new()
-	forge_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var margin := forge_ui
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 20)
-	add_child(margin)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	margin.add_child(scroll)
-	var column := VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_theme_constant_override("separation", 8)
-	scroll.add_child(column)
-
-	header_label = Label.new()
-	header_label.text = "ASHENFORGE"
-	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header_label.add_theme_font_size_override("font_size", 29)
-	header_label.add_theme_color_override("font_color", Color("#f0d6b2"))
-	column.add_child(header_label)
-	var menu_button := _make_button("☰  МЕНЮ / СОХРАНЕНИЕ")
-	menu_button.custom_minimum_size.y = 40
-	menu_button.pressed.connect(_open_pause_menu)
-	column.add_child(menu_button)
-	var camera_row := HBoxContainer.new()
-	camera_row.add_theme_constant_override("separation", 8)
-	column.add_child(camera_row)
-	var camera_left := _make_button("◀  ПОВОРОТ ВЛЕВО")
-	camera_left.custom_minimum_size.y = 38
-	camera_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	camera_left.add_theme_font_size_override("font_size", 12)
-	camera_left.pressed.connect(func(): forge_view.rotate_camera(-1.0))
-	camera_row.add_child(camera_left)
-	var camera_right := _make_button("ПОВОРОТ ВПРАВО  ▶")
-	camera_right.custom_minimum_size.y = 38
-	camera_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	camera_right.add_theme_font_size_override("font_size", 12)
-	camera_right.pressed.connect(func(): forge_view.rotate_camera(1.0))
-	camera_row.add_child(camera_right)
-
-	var spacer_top := Control.new()
-	spacer_top.custom_minimum_size.y = 8
-	column.add_child(spacer_top)
-
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _panel_style())
-	column.add_child(panel)
-	var panel_column := VBoxContainer.new()
-	panel_column.add_theme_constant_override("separation", 6)
-	panel.add_child(panel_column)
-
-	weapon_label = Label.new()
-	weapon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	weapon_label.add_theme_font_size_override("font_size", 19)
-	weapon_label.add_theme_color_override("font_color", Color("#f0d6b2"))
-	panel_column.add_child(weapon_label)
-
-	stats_label = Label.new()
-	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stats_label.add_theme_font_size_override("font_size", 14)
-	panel_column.add_child(stats_label)
-
-	progression_label = Label.new()
-	progression_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	progression_label.add_theme_color_override("font_color", Color("#d7c18e"))
-	panel_column.add_child(progression_label)
-
-	ability_label = Label.new()
-	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ability_label.add_theme_font_size_override("font_size", 12)
-	ability_label.add_theme_color_override("font_color", Color("#d7c18e"))
-	panel_column.add_child(ability_label)
-
-	frenzy_label = Label.new()
-	frenzy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	frenzy_label.add_theme_font_size_override("font_size", 14)
-	frenzy_label.add_theme_color_override("font_color", Color("#ffad58"))
-	panel_column.add_child(frenzy_label)
-
-	heat_bar = _make_bar(panel_column, "Накал клинка", Color("#e67e45"))
-	quality_bar = _make_bar(panel_column, "Качество клинка", Color("#d7c18e"))
-	durability_bar = _make_bar(panel_column, "Прочность", Color("#8fae9b"))
-
-	relic_label = Label.new()
-	relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	relic_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	relic_label.add_theme_font_size_override("font_size", 12)
-	relic_label.add_theme_color_override("font_color", Color("#c6a6e0"))
-	panel_column.add_child(relic_label)
-	material_label = Label.new()
-	material_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	material_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	material_label.add_theme_font_size_override("font_size", 12)
-	material_label.add_theme_color_override("font_color", Color("#d6a978"))
-	panel_column.add_child(material_label)
-
-	message_label = Label.new()
-	message_label.text = "Куй клинок. Десятый удар зарядит шквал FRENZY."
-	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	message_label.custom_minimum_size.y = 52
-	message_label.add_theme_color_override("font_color", Color("#e4d5c4"))
-	column.add_child(message_label)
-
-	weapon_select_button = _make_button("СЛЕДУЮЩАЯ ЗАГОТОВКА")
-	weapon_select_button.pressed.connect(_on_cycle_weapon)
-	column.add_child(weapon_select_button)
-	hang_button = _make_button("ПОВЕСИТЬ КЛИНОК НА СТЕНУ")
-	hang_button.custom_minimum_size.y = 42
-	hang_button.add_theme_font_size_override("font_size", 13)
-	hang_button.pressed.connect(_on_hang_blade)
-	column.add_child(hang_button)
-
-	merchant_button = _make_button("ТОРГОВЕЦ • РЕДКИЕ ЧЕРТЕЖИ")
-	merchant_button.pressed.connect(_on_toggle_merchant)
-	column.add_child(merchant_button)
-
-	merchant_panel = PanelContainer.new()
-	merchant_panel.add_theme_stylebox_override("panel", _panel_style())
-	merchant_panel.visible = false
-	column.add_child(merchant_panel)
-	var merchant_column := VBoxContainer.new()
-	merchant_column.add_theme_constant_override("separation", 5)
-	merchant_panel.add_child(merchant_column)
-	var merchant_title := Label.new()
-	merchant_title.text = "СТРАНСТВУЮЩИЙ ТОРГОВЕЦ"
-	merchant_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	merchant_title.add_theme_color_override("font_color", Color("#e4c28f"))
-	merchant_column.add_child(merchant_title)
-	merchant_status = Label.new()
-	merchant_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	merchant_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	merchant_column.add_child(merchant_status)
-	for index in range(3):
-		var offer_label := Label.new()
-		offer_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		offer_label.add_theme_font_size_override("font_size", 12)
-		merchant_column.add_child(offer_label)
-		merchant_offer_labels.append(offer_label)
-		var buy_button := _make_button("Купить чертёж")
-		buy_button.custom_minimum_size.y = 42
-		buy_button.add_theme_font_size_override("font_size", 14)
-		buy_button.pressed.connect(_on_buy_offer.bind(index))
-		merchant_column.add_child(buy_button)
-		merchant_buy_buttons.append(buy_button)
-
-	strike_button = _make_button("УДАРИТЬ МОЛОТОМ")
-	strike_button.custom_minimum_size.y = 62
-	strike_button.pressed.connect(_on_strike)
-	column.add_child(strike_button)
-	timing_meter = Control.new()
-	timing_meter.set_script(TIMING_METER_SCRIPT)
-	timing_meter.custom_minimum_size = Vector2(0, 62)
-	timing_meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(timing_meter)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	column.add_child(row)
-	cool_button = _make_button("Остудить")
-	cool_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cool_button.pressed.connect(_on_cool)
-	row.add_child(cool_button)
-	sell_button = _make_button("Продать")
-	sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sell_button.pressed.connect(_on_sell)
-	row.add_child(sell_button)
-
-	relic_button = _make_button("Пожертвовать клинок машине реликвий")
-	relic_button.pressed.connect(_on_relic)
-	column.add_child(relic_button)
-	temper_button = _make_button("ЗАКАЛИТЬ КЛИНОК")
-	temper_button.pressed.connect(_on_temper)
-	column.add_child(temper_button)
-	scale_upgrade_button = _make_button("ЗАКАЛИТЬ ЧЕШУЮ ДРАКОНА")
-	scale_upgrade_button.pressed.connect(_on_scale_upgrade)
-	column.add_child(scale_upgrade_button)
-	void_upgrade_button = _make_button("ВПЛЕСТИ ЯДРО ПУСТОТЫ")
-	void_upgrade_button.pressed.connect(_on_void_upgrade)
-	column.add_child(void_upgrade_button)
-	for craft_id in ["ashen_greatsword", "rift_spear", "storm_twins"]:
-		var craft_button := _make_button("КУЗНЕЧНЫЙ РЕЦЕПТ")
-		craft_button.custom_minimum_size.y = 44
-		craft_button.add_theme_font_size_override("font_size", 12)
-		craft_button.pressed.connect(_on_craft_weapon.bind(craft_id))
-		column.add_child(craft_button)
-		craft_buttons.append(craft_button)
-
-	item_inventory_label = Label.new()
-	item_inventory_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	item_inventory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	item_inventory_label.add_theme_color_override("font_color", Color("#d6c5a8"))
-	column.add_child(item_inventory_label)
-	wall_panel = PanelContainer.new()
-	wall_panel.add_theme_stylebox_override("panel", _panel_style())
-	column.add_child(wall_panel)
-	var wall_column := VBoxContainer.new()
-	wall_column.add_theme_constant_override("separation", 5)
-	wall_panel.add_child(wall_column)
-	var wall_title := Label.new()
-	wall_title.text = "СТЕНА ТРОФЕЕВ • ВЫБЕРИ МЕЧ, ЧТОБЫ СНЯТЬ ЕГО"
-	wall_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	wall_title.add_theme_color_override("font_color", Color("#e4c28f"))
-	wall_title.add_theme_font_size_override("font_size", 12)
-	wall_column.add_child(wall_title)
-	for wall_index in range(8):
-		var wall_slot := _make_button("ПУСТОЕ МЕСТО")
-		wall_slot.custom_minimum_size.y = 38
-		wall_slot.add_theme_font_size_override("font_size", 12)
-		wall_slot.pressed.connect(_on_wall_slot.bind(wall_index))
-		wall_column.add_child(wall_slot)
-		wall_slot_buttons.append(wall_slot)
-	achievement_label = Label.new()
-	achievement_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	achievement_label.add_theme_font_size_override("font_size", 11)
-	achievement_label.add_theme_color_override("font_color", Color("#c6a6e0"))
-	column.add_child(achievement_label)
-	for item_id in ["healing_flask", "dragon_bomb", "ward_rune"]:
-		var item_button := _make_button("ИЗГОТОВИТЬ ПРЕДМЕТ")
-		item_button.custom_minimum_size.y = 42
-		item_button.add_theme_font_size_override("font_size", 12)
-		item_button.pressed.connect(_on_craft_battle_item.bind(item_id))
-		column.add_child(item_button)
-		item_buttons.append(item_button)
-
-	tribute_button = _make_button("Принести дань дракону")
-	tribute_button.pressed.connect(_on_tribute)
-	column.add_child(tribute_button)
-
-	battle_button = _make_button("ВОЙТИ В ЛОГОВО ДРАКОНА")
-	battle_button.pressed.connect(_on_enter_dragon_lair)
-	column.add_child(battle_button)
-
-	var upgrade_row := HBoxContainer.new()
-	upgrade_row.add_theme_constant_override("separation", 6)
-	column.add_child(upgrade_row)
-	for upgrade_id in ["bellows", "anvil", "luck"]:
-		var upgrade_button := _make_button("")
-		upgrade_button.custom_minimum_size.y = 46
-		upgrade_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		upgrade_button.add_theme_font_size_override("font_size", 11)
-		upgrade_button.pressed.connect(_on_upgrade.bind(upgrade_id))
-		upgrade_row.add_child(upgrade_button)
-		upgrade_buttons.append(upgrade_button)
-
-	var game_tabs := TabContainer.new()
-	game_tabs.custom_minimum_size = Vector2(0, 430)
-	game_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(game_tabs)
-
-	var workshop_scroll := ScrollContainer.new()
-	workshop_scroll.name = "МАСТЕРСКАЯ"
-	workshop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	workshop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	game_tabs.add_child(workshop_scroll)
-	var workshop_column := VBoxContainer.new()
-	workshop_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	workshop_column.add_theme_constant_override("separation", 7)
-	workshop_scroll.add_child(workshop_column)
-
-	var hunt_scroll := ScrollContainer.new()
-	hunt_scroll.name = "ОХОТА"
-	hunt_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hunt_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	game_tabs.add_child(hunt_scroll)
-	var hunt_column := VBoxContainer.new()
-	hunt_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hunt_column.add_theme_constant_override("separation", 7)
-	hunt_scroll.add_child(hunt_column)
-
-	var hall_scroll := ScrollContainer.new()
-	hall_scroll.name = "ЗАЛ СЛАВЫ"
-	hall_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hall_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	game_tabs.add_child(hall_scroll)
-	var hall_column := VBoxContainer.new()
-	hall_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hall_column.add_theme_constant_override("separation", 7)
-	hall_scroll.add_child(hall_column)
-
-	for control in [merchant_button, merchant_panel, relic_button, temper_button, scale_upgrade_button, void_upgrade_button]:
-		control.get_parent().remove_child(control)
-		workshop_column.add_child(control)
-	for control in craft_buttons:
-		control.get_parent().remove_child(control)
-		workshop_column.add_child(control)
-	wall_panel.get_parent().remove_child(wall_panel)
-	workshop_column.add_child(wall_panel)
-	upgrade_row.get_parent().remove_child(upgrade_row)
-	workshop_column.add_child(upgrade_row)
-
-	material_label.get_parent().remove_child(material_label)
-	hunt_column.add_child(material_label)
-	for control in [item_inventory_label, tribute_button, battle_button]:
-		control.get_parent().remove_child(control)
-		hunt_column.add_child(control)
-	for control in item_buttons:
-		control.get_parent().remove_child(control)
-		hunt_column.add_child(control)
-	achievement_label.get_parent().remove_child(achievement_label)
-	hall_column.add_child(achievement_label)
-
-	var footer := Label.new()
-	footer.text = "КОВКА • РАЗВИТИЕ • ОХОТА • ЛЕГЕНДЫ"
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.add_theme_color_override("font_color", Color("#9d929f"))
-	column.add_child(footer)
-
-	var spacer_bottom := Control.new()
-	spacer_bottom.custom_minimum_size.y = 8
-	column.add_child(spacer_bottom)
-
-	# Immersive viewport composition: compact top bar, open scene, translucent bottom HUD.
-	for child in column.get_children():
-		column.remove_child(child)
-	var top_bar := HBoxContainer.new()
-	top_bar.add_theme_constant_override("separation", 7)
-	column.add_child(top_bar)
-	header_label.add_theme_font_size_override("font_size", 20)
-	header_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	top_bar.add_child(header_label)
-	menu_button.custom_minimum_size = Vector2(48, 40)
-	menu_button.text = "☰"
-	top_bar.add_child(menu_button)
-	var rotate_left := camera_row.get_child(0) as Button
-	var rotate_right := camera_row.get_child(1) as Button
-	rotate_left.text = "◀"
-	rotate_right.text = "▶"
-	rotate_left.custom_minimum_size = Vector2(38, 40)
-	rotate_right.custom_minimum_size = Vector2(38, 40)
-	top_bar.add_child(rotate_left)
-	top_bar.add_child(rotate_right)
-
-	var scene_spacer := Control.new()
-	scene_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(scene_spacer)
-
-	panel.add_theme_stylebox_override("panel", _hud_panel_style())
-	panel_column.add_theme_constant_override("separation", 3)
-	panel_column.remove_child(relic_label)
-	panel_column.remove_child(material_label)
-	weapon_label.add_theme_font_size_override("font_size", 16)
-	stats_label.add_theme_font_size_override("font_size", 11)
-	progression_label.add_theme_font_size_override("font_size", 11)
-	ability_label.add_theme_font_size_override("font_size", 10)
-	frenzy_label.add_theme_font_size_override("font_size", 11)
-	for bar in [heat_bar, quality_bar, durability_bar]:
-		bar.custom_minimum_size.y = 10
-	column.add_child(panel)
-	message_label.custom_minimum_size.y = 24
-	message_label.add_theme_font_size_override("font_size", 11)
-	column.add_child(message_label)
-
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 7)
-	column.add_child(action_row)
-	strike_button.custom_minimum_size.y = 50
-	strike_button.text = "⚒  УДАРИТЬ МОЛОТОМ"
-	strike_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	action_row.add_child(strike_button)
-	var side_actions := VBoxContainer.new()
-	side_actions.add_theme_constant_override("separation", 3)
-	action_row.add_child(side_actions)
-	cool_button.custom_minimum_size.y = 23
-	sell_button.custom_minimum_size.y = 23
-	side_actions.add_child(cool_button)
-	side_actions.add_child(sell_button)
-	timing_meter.custom_minimum_size = Vector2(0, 30)
-	column.add_child(timing_meter)
-	game_tabs.custom_minimum_size = Vector2(0, 176)
-	game_tabs.size_flags_vertical = Control.SIZE_SHRINK_END
-	column.add_child(game_tabs)
-
-	workshop_column.add_child(weapon_select_button)
-	workshop_column.add_child(hang_button)
-	hunt_column.add_child(relic_label)
-	hunt_column.add_child(material_label)
-	column.add_theme_constant_override("separation", 4)
-	_build_battle_overlay()
-	forge_ui.visible = false
-
-
-func _build_start_menu() -> void:
-	menu_overlay = PanelContainer.new()
-	menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	menu_overlay.add_theme_stylebox_override("panel", _panel_style())
-	add_child(menu_overlay)
-	var menu_margin := MarginContainer.new()
-	menu_margin.add_theme_constant_override("margin_left", 34)
-	menu_margin.add_theme_constant_override("margin_right", 34)
-	menu_margin.add_theme_constant_override("margin_top", 70)
-	menu_margin.add_theme_constant_override("margin_bottom", 70)
-	menu_overlay.add_child(menu_margin)
-	var menu_column := VBoxContainer.new()
-	menu_column.add_theme_constant_override("separation", 16)
-	menu_margin.add_child(menu_column)
-	var menu_space := Control.new()
-	menu_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	menu_column.add_child(menu_space)
-	var title := Label.new()
-	title.text = "ASHENFORGE"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color("#f0c18e"))
-	menu_column.add_child(title)
-	var subtitle := Label.new()
-	subtitle.text = "КУЗНИЦА, ГДЕ РОЖДАЮТСЯ ЛЕГЕНДЫ"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 12)
-	subtitle.add_theme_color_override("font_color", Color("#c6a6a0"))
-	menu_column.add_child(subtitle)
-	var gap := Control.new()
-	gap.custom_minimum_size.y = 24
-	menu_column.add_child(gap)
-	continue_button = _make_button("ПРОДОЛЖИТЬ")
-	continue_button.pressed.connect(_continue_game)
-	menu_column.add_child(continue_button)
-	menu_save_button = _make_button("СОХРАНИТЬ ПРОГРЕСС")
-	menu_save_button.pressed.connect(_save_now)
-	menu_column.add_child(menu_save_button)
-	menu_save_button.visible = false
-	var new_game_button := _make_button("НОВАЯ ИГРА")
-	new_game_button.pressed.connect(_confirm_new_game)
-	menu_column.add_child(new_game_button)
-	var settings_button := _make_button("НАСТРОЙКИ")
-	settings_button.pressed.connect(_open_settings)
-	menu_column.add_child(settings_button)
-	var bottom := Control.new()
-	bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	menu_column.add_child(bottom)
-	settings_overlay = PanelContainer.new()
-	settings_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	settings_overlay.add_theme_stylebox_override("panel", _panel_style())
-	settings_overlay.visible = false
-	add_child(settings_overlay)
-	var settings_margin := MarginContainer.new()
-	settings_margin.add_theme_constant_override("margin_left", 30)
-	settings_margin.add_theme_constant_override("margin_right", 30)
-	settings_margin.add_theme_constant_override("margin_top", 100)
-	settings_margin.add_theme_constant_override("margin_bottom", 100)
-	settings_overlay.add_child(settings_margin)
-	var settings_column := VBoxContainer.new()
-	settings_column.add_theme_constant_override("separation", 14)
-	settings_margin.add_child(settings_column)
-	var settings_title := Label.new()
-	settings_title.text = "НАСТРОЙКИ"
-	settings_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	settings_title.add_theme_font_size_override("font_size", 26)
-	settings_title.add_theme_color_override("font_color", Color("#f0c18e"))
-	settings_column.add_child(settings_title)
-	autosave_toggle = CheckButton.new()
-	autosave_toggle.text = "Автоматически сохранять прогресс"
-	autosave_toggle.button_pressed = autosave_enabled
-	autosave_toggle.toggled.connect(_on_autosave_toggled)
-	settings_column.add_child(autosave_toggle)
-	var settings_note := Label.new()
-	settings_note.text = "Сохранение хранится на устройстве. Ручное сохранение доступно в игровом меню."
-	settings_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	settings_note.add_theme_font_size_override("font_size", 13)
-	settings_note.add_theme_color_override("font_color", Color("#c6b9b0"))
-	settings_column.add_child(settings_note)
-	var settings_spacer := Control.new()
-	settings_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	settings_column.add_child(settings_spacer)
-	var save_now_button := _make_button("СОХРАНИТЬ СЕЙЧАС")
-	save_now_button.pressed.connect(_save_now)
-	settings_column.add_child(save_now_button)
-	var settings_back := _make_button("НАЗАД")
-	settings_back.pressed.connect(_close_settings)
-	settings_column.add_child(settings_back)
-	var confirm_dialog := ConfirmationDialog.new()
-	confirm_dialog.name = "NewGameConfirmation"
-	confirm_dialog.dialog_text = "Начать новую игру? Текущее сохранение будет заменено."
-	confirm_dialog.confirmed.connect(_start_new_game)
-	add_child(confirm_dialog)
-	_refresh_menu_buttons()
-
-func _refresh_menu_buttons() -> void:
-	if continue_button != null:
-		continue_button.disabled = not SaveManager.has_save()
-	if menu_save_button != null:
-		menu_save_button.visible = game_started
-
-func _confirm_new_game() -> void:
-	var dialog := get_node_or_null("NewGameConfirmation") as ConfirmationDialog
-	if dialog != null:
-		dialog.popup_centered()
-
-func _start_new_game() -> void:
-	state = GameState.new()
-	SaveManager.delete_save()
-	game_started = true
-	message_label.text = "Новая кузнечная история начинается."
-	_resume_game()
-	_save_now()
-
-func _continue_game() -> void:
-	if not SaveManager.has_save():
-		return
-	state = GameState.new()
-	SaveManager.load_game(state)
-	game_started = true
-	message_label.text = "Сохранение загружено. Возвращаемся к работе."
-	_resume_game()
-	_refresh()
-
-func _open_pause_menu() -> void:
-	if autosave_enabled and game_started:
-		SaveManager.save_game(state)
-	menu_overlay.visible = true
-	settings_overlay.visible = false
-	_refresh_menu_buttons()
-	forge_ui.visible = false
-	battle_overlay.visible = false
-	dragon_view.visible = false
-	_refresh_menu_buttons()
-
-func _resume_game() -> void:
-	menu_overlay.visible = false
-	settings_overlay.visible = false
-	forge_ui.visible = not state.battle_active
-	battle_overlay.visible = state.battle_active
-	dragon_view.visible = state.battle_active
-	_refresh()
-
-func _open_settings() -> void:
-	settings_overlay.visible = true
-	menu_overlay.visible = false
-	autosave_toggle.button_pressed = autosave_enabled
-
-func _close_settings() -> void:
-	settings_overlay.visible = false
-	menu_overlay.visible = true
-	_refresh_menu_buttons()
-
-func _on_autosave_toggled(enabled: bool) -> void:
-	autosave_enabled = enabled
-	SaveManager.save_settings(autosave_enabled)
-
-func _save_now() -> void:
-	if not game_started:
-		return
-	SaveManager.save_game(state)
-	message_label.text = "Прогресс сохранён."
-
-func _build_battle_overlay() -> void:
-	dragon_view = Control.new()
-	dragon_view.set_script(DRAGON_VIEW_SCRIPT)
-	dragon_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dragon_view.visible = false
-	add_child(dragon_view)
-	move_child(dragon_view, 1)
-
-	battle_overlay = PanelContainer.new()
-	battle_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	battle_overlay.add_theme_stylebox_override("panel", _panel_style())
-	battle_overlay.visible = false
-	add_child(battle_overlay)
-	var outer := MarginContainer.new()
-	outer.add_theme_constant_override("margin_left", 24)
-	outer.add_theme_constant_override("margin_right", 24)
-	outer.add_theme_constant_override("margin_top", 34)
-	outer.add_theme_constant_override("margin_bottom", 34)
-	battle_overlay.add_child(outer)
-	var battle_column := VBoxContainer.new()
-	battle_column.add_theme_constant_override("separation", 12)
-	outer.add_child(battle_column)
-	var top_space := Control.new()
-	top_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	battle_column.add_child(top_space)
-	battle_title = Label.new()
-	battle_title.text = "ЛОГОВО ДРАКОНА"
-	battle_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	battle_title.add_theme_font_size_override("font_size", 26)
-	battle_title.add_theme_color_override("font_color", Color("#f0c18e"))
-	battle_column.add_child(battle_title)
-	battle_status = Label.new()
-	battle_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	battle_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	battle_status.custom_minimum_size.y = 64
-	battle_status.add_theme_color_override("font_color", Color("#ead9c8"))
-	battle_column.add_child(battle_status)
-	dragon_health_bar = _make_bar(battle_column, "ЗДОРОВЬЕ ДРАКОНА", Color("#bd514b"))
-	player_health_bar = _make_bar(battle_column, "ТВОЁ ЗДОРОВЬЕ", Color("#8fae9b"))
-	battle_intent = Label.new()
-	battle_intent.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	battle_intent.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	battle_intent.custom_minimum_size.y = 48
-	battle_intent.add_theme_color_override("font_color", Color("#ffb45e"))
-	battle_intent.add_theme_font_size_override("font_size", 17)
-	battle_column.add_child(battle_intent)
-	var attack := _make_button("⚔  УДАРИТЬ КЛИНКОМ")
-	attack.custom_minimum_size.y = 62
-	attack.pressed.connect(_on_battle_action.bind("attack"))
-	battle_column.add_child(attack)
-	var defense_row := HBoxContainer.new()
-	defense_row.add_theme_constant_override("separation", 8)
-	battle_column.add_child(defense_row)
-	var dodge := _make_button("Уклониться")
-	dodge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dodge.pressed.connect(_on_battle_action.bind("dodge"))
-	defense_row.add_child(dodge)
-	var guard := _make_button("Блок")
-	guard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	guard.pressed.connect(_on_battle_action.bind("guard"))
-	defense_row.add_child(guard)
-	var item_row := HBoxContainer.new()
-	item_row.add_theme_constant_override("separation", 6)
-	battle_column.add_child(item_row)
-	var heal_action := _make_button("ЭЛИКСИР")
-	heal_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	heal_action.custom_minimum_size.y = 48
-	heal_action.add_theme_font_size_override("font_size", 12)
-	heal_action.pressed.connect(_on_battle_action.bind("heal"))
-	item_row.add_child(heal_action)
-	var bomb_action := _make_button("БОМБА")
-	bomb_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bomb_action.custom_minimum_size.y = 48
-	bomb_action.add_theme_font_size_override("font_size", 12)
-	bomb_action.pressed.connect(_on_battle_action.bind("bomb"))
-	item_row.add_child(bomb_action)
-	var ward_action := _make_button("РУНА")
-	ward_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ward_action.custom_minimum_size.y = 48
-	ward_action.add_theme_font_size_override("font_size", 12)
-	ward_action.pressed.connect(_on_battle_action.bind("ward"))
-	item_row.add_child(ward_action)
-	var leave := _make_button("Отступить в кузницу")
-	leave.pressed.connect(_on_leave_battle)
-	battle_column.add_child(leave)
-	var bottom_space := Control.new()
-	bottom_space.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	battle_column.add_child(bottom_space)
-
-func _on_enter_dragon_lair() -> void:
-	var result: Dictionary = dragon_combat.begin(state)
-	message_label.text = str(result.get("message", ""))
-	battle_message = str(result.get("message", "Пламя древнего существа освещает зал."))
-	if bool(result.get("ok", false)):
-		_refresh()
-
-func _on_battle_action(action: String) -> void:
-	var result: Dictionary = dragon_combat.act(state, action)
-	battle_message = str(result.get("message", ""))
-	if dragon_view.has_method("play_player_action"):
-		dragon_view.play_player_action(action)
-	elif dragon_view.has_method("play_hit") and action == "attack":
-		dragon_view.play_hit()
-	if bool(result.get("won", false)) or bool(result.get("lost", false)):
-		message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_leave_battle() -> void:
-	state.battle_active = false
-	battle_message = "Ты отступил в кузницу. Дракон останется ждать следующей попытки."
-	message_label.text = battle_message
-	_refresh()
-
-func _update_battle_ui() -> void:
-	var in_battle: bool = state.battle_active
-	battle_overlay.visible = in_battle
-	dragon_view.visible = in_battle
-	forge_ui.visible = not in_battle
-	if not in_battle:
-		return
-	battle_title.text = "%s  •  ФАЗА %d  •  РАУНД %d" % [dragon_combat.form_name(state), state.dragon_phase, state.dragon_round]
-	if dragon_view.has_method("set_dragon_form"):
-		dragon_view.set_dragon_form(state.dragon_form)
-	if dragon_view.has_method("set_combat_intent"):
-		dragon_view.set_combat_intent(state.dragon_intent, state.dragon_phase)
-	battle_status.text = battle_message
-	battle_intent.text = dragon_combat.intent_text(state)
-	dragon_health_bar.max_value = maxf(1.0, state.dragon_max_hp)
-	dragon_health_bar.value = state.dragon_hp
-	player_health_bar.max_value = 120.0
-	player_health_bar.value = state.player_hp
-
-func _panel_style() -> StyleBox:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.045, 0.065, 0.82)
-	style.border_color = Color("#66515a")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(12)
-	style.set_content_margin_all(12)
-	return style
-
-func _make_bar(parent: VBoxContainer, caption: String, fill: Color) -> ProgressBar:
-	var label := Label.new()
-	label.text = caption
-	label.add_theme_font_size_override("font_size", 12)
-	parent.add_child(label)
-	var bar := ProgressBar.new()
-	bar.max_value = 100
-	bar.show_percentage = false
-	bar.custom_minimum_size.y = 12
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color("#29232d")
-	bg.set_corner_radius_all(5)
-	var fg := StyleBoxFlat.new()
-	fg.bg_color = fill
-	fg.set_corner_radius_all(5)
-	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", fg)
-	parent.add_child(bar)
-	return bar
-
-func _make_button(caption: String) -> Button:
-	var button := Button.new()
-	button.text = caption
-	button.custom_minimum_size.y = 50
-	button.add_theme_font_size_override("font_size", 16)
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color("#49343a")
-	normal.border_color = Color("#9a705c")
-	normal.set_border_width_all(1)
-	normal.set_corner_radius_all(9)
-	normal.set_content_margin_all(8)
-	var hover := normal.duplicate()
-	hover.bg_color = Color("#62434a")
-	button.add_theme_stylebox_override("normal", normal)
-	button.add_theme_stylebox_override("hover", hover)
-	button.add_theme_stylebox_override("pressed", hover)
-	return button
-
-func _on_toggle_merchant() -> void:
-	merchant_panel.visible = not merchant_panel.visible
-	_refresh()
-
-func _on_buy_offer(index: int) -> void:
-	var offers := merchant.stock(state)
-	if index >= offers.size():
-		message_label.text = "У торговца пока нет подходящего товара."
-		_refresh()
-		return
-	var result: Dictionary = merchant.buy_weapon(state, str(offers[index].id))
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_cycle_weapon() -> void:
-	state.selected_weapon_id = weapon_system.next_weapon_id(state, state.selected_weapon_id)
-	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
-	message_label.text = "Выбрана следующая заготовка: %s. Текущий клинок не изменён." % str(selected.name)
-	_refresh()
-
-func _on_strike() -> void:
-	var timing_grade: String = "good"
-	if timing_meter != null and timing_meter.has_method("get_timing_grade"):
-		timing_grade = str(timing_meter.get_timing_grade())
-	var result: Dictionary = forge.strike(state, timing_grade)
-	message_label.text = str(result.get("message", ""))
-	if forge_view.has_method("play_strike"):
-		forge_view.play_strike()
-	if str(result.get("message", "")).contains("ПРОБУЖДЕНИЕ!") and forge_view.has_method("play_awakening"):
-		forge_view.play_awakening()
-	_refresh()
-
-func _on_cool() -> void:
-	message_label.text = forge.cool(state)
-	_refresh()
-
-func _on_hang_blade() -> void:
-	if not state.has_blade:
-		message_label.text = "На наковальне нет клинка, который можно повесить."
-		return
-	if state.wall_weapons.size() >= 8:
-		message_label.text = "Стена заполнена. Сними один из клинков, чтобы освободить место."
-		return
-	state.wall_weapons.append(_current_blade_snapshot())
-	forge.start_new_blade(state)
-	message_label.text = "Клинок занял своё место на стене. Коллекция пополнилась."
-	_refresh()
-
-func _current_blade_snapshot() -> Dictionary:
-	return {
-		"weapon_id": state.weapon_id,
-		"weapon_name": state.weapon_name,
-		"quality": state.quality,
-		"durability": state.durability,
-		"awakened": state.weapon_awakened and state.awakened_weapon_id == state.weapon_id,
-		"awakened_weapon_id": state.awakened_weapon_id,
-		"temper": int(state.weapon_temper_levels.get(state.weapon_id, 0))
-	}
-
-func _on_wall_slot(index: int) -> void:
-	if index < 0 or index >= state.wall_weapons.size():
-		return
-	var stored: Dictionary = state.wall_weapons[index]
-	if state.has_blade:
-		state.wall_weapons[index] = _current_blade_snapshot()
-	else:
-		state.wall_weapons.remove_at(index)
-	state.has_blade = true
-	state.weapon_id = str(stored.get("weapon_id", "coal_blade"))
-	state.weapon_name = str(stored.get("weapon_name", "Угольный клинок"))
-	state.quality = float(stored.get("quality", 5.0))
-	state.durability = float(stored.get("durability", 100.0))
-	state.weapon_awakened = bool(stored.get("awakened", false))
-	state.awakened_weapon_id = str(stored.get("awakened_weapon_id", ""))
-	state.heat = 25.0
-	state.strikes_on_blade = 0
-	state.last_forge_result = ""
-	message_label.text = "Со стены снят клинок: %s. Текущий клинок обменян." % state.weapon_name
-	_refresh()
-
-func _on_sell() -> void:
-	var result: Dictionary = economy.sell_blade(state)
-	message_label.text = str(result.get("message", ""))
-	if bool(result.get("ok", false)):
-		forge.start_new_blade(state)
-	_refresh()
-
-func _on_relic() -> void:
-	var result: Dictionary = relic_machine.sacrifice_blade(state)
-	message_label.text = str(result.get("message", ""))
-	if bool(result.get("ok", false)):
-		forge.start_new_blade(state)
-	_refresh()
-
-func _on_tribute() -> void:
-	var result: Dictionary = economy.pay_tribute(state)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_temper() -> void:
-	var result: Dictionary = economy.temper_weapon(state)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_scale_upgrade() -> void:
-	var result: Dictionary = economy.upgrade_dragon_armor(state)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_void_upgrade() -> void:
-	var result: Dictionary = economy.upgrade_void_mastery(state)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_craft_weapon(weapon_id: String) -> void:
-	var result: Dictionary = merchant.craft_weapon(state, weapon_id)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_craft_battle_item(item_id: String) -> void:
-	var result: Dictionary = economy.craft_battle_item(state, item_id)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _on_upgrade(upgrade_id: String) -> void:
-	var result: Dictionary = economy.buy_upgrade(state, upgrade_id)
-	message_label.text = str(result.get("message", ""))
-	_refresh()
-
-func _refresh() -> void:
-	if forge_view.has_method("set_wall_weapons"):
-		forge_view.set_wall_weapons(state.wall_weapons)
-	if hang_button != null:
-		hang_button.disabled = not state.has_blade or state.wall_weapons.size() >= 8
-		hang_button.text = "ПОВЕСИТЬ КЛИНОК • %d/8" % state.wall_weapons.size()
-	for wall_index in range(wall_slot_buttons.size()):
-		var slot_button: Button = wall_slot_buttons[wall_index]
-		if wall_index < state.wall_weapons.size():
-			var trophy: Dictionary = state.wall_weapons[wall_index]
-			var awakened_mark := " ✦" if bool(trophy.get("awakened", false)) else ""
-			slot_button.text = "%s%s • КАЧЕСТВО %d" % [str(trophy.get("weapon_name", "Клинок")), awakened_mark, int(float(trophy.get("quality", 0.0)))]
-			slot_button.disabled = false
-		else:
-			slot_button.text = "ПУСТОЕ МЕСТО"
-			slot_button.disabled = true
-	if forge_view.has_method("set_blade_visual"):
-		forge_view.set_blade_visual(state.weapon_id, state.weapon_awakened and state.awakened_weapon_id == state.weapon_id)
-	if forge_view.has_method("set_forge_state"):
-		forge_view.set_forge_state(state.heat, state.quality, state.durability, state.last_forge_result)
-	header_label.text = "ASHENFORGE  •  ДЕНЬ %d/%d" % [state.day, state.contract_days]
-	weapon_label.text = state.weapon_name if state.has_blade else "Кузница ждёт новой заготовки"
-	stats_label.text = "Золото: %d     Дань: %d     Лучший клинок: %d" % [state.gold, state.tribute_goal, state.best_sale]
-	progression_label.text = "Удары: %d/%d   Глава: %d   Победы над драконами: %d" % [state.strikes_on_blade, forge.STRIKES_FOR_FRENZY, state.chapter, state.dragon_victories]
-	ability_label.text = weapon_system.final_form_status(state)
-	if state.frenzy_hits > 0:
-		frenzy_label.text = "FRENZY АКТИВЕН • безопасных ударов: %d" % state.frenzy_hits
-	elif state.frenzy_ready:
-		frenzy_label.text = "FRENZY ЗАРЯЖЕН • следующий удар!"
-	else:
-		frenzy_label.text = "Заряд FRENZY: %d%%" % int(minf(100.0, float(state.strikes_on_blade) / float(forge.STRIKES_FOR_FRENZY) * 100.0))
-	heat_bar.value = state.heat
-	quality_bar.value = state.quality
-	durability_bar.value = state.durability
-	relic_label.text = relic_machine.summary(state)
-	material_label.text = "МАТЕРИАЛЫ: Пепел %d  •  Чешуя %d  •  Ядра пустоты %d" % [int(state.materials.get("dragon_ash", 0)), int(state.materials.get("dragon_scales", 0)), int(state.materials.get("void_cores", 0))]
-	item_inventory_label.text = "БОЕВОЙ ЗАПАС: Эликсиры %d • Бомбы %d • Руны %d" % [int(state.battle_items.get("healing_flask", 0)), int(state.battle_items.get("dragon_bomb", 0)), int(state.battle_items.get("ward_rune", 0))]
-	var new_achievements: Array[String] = achievement_system.claim_ready(state)
-	if not new_achievements.is_empty():
-		message_label.text = "ДОСТИЖЕНИЕ! " + str(new_achievements[0]) + (" и ещё %d" % (new_achievements.size() - 1) if new_achievements.size() > 1 else "")
-	achievement_label.text = achievement_system.journal(state)
-	var item_ids: Array[String] = ["healing_flask", "dragon_bomb", "ward_rune"]
-	var item_titles: Array[String] = ["ЭЛИКСИР ЖИЗНИ", "ДРАКОНЬЯ БОМБА", "РУНА ЗАЩИТЫ"]
-	var item_prices: Array[int] = [55, 70, 65]
-	var item_materials: Array[String] = ["", "dragon_ash", "dragon_scales"]
-	for item_index in range(item_buttons.size()):
-		var item_id: String = item_ids[item_index]
-		var item_count: int = int(state.battle_items.get(item_id, 0))
-		var item_material: String = item_materials[item_index]
-		var material_ready: bool = item_material == "" or int(state.materials.get(item_material, 0)) >= 1
-		item_buttons[item_index].text = "%s • %d зол. • В запасе %d" % [item_titles[item_index], item_prices[item_index], item_count]
-		item_buttons[item_index].disabled = item_count >= 5 or state.gold < item_prices[item_index] or not material_ready
-	var temper_level := int(state.weapon_temper_levels.get(state.weapon_id, 0))
-	temper_button.text = "ЗАКАЛИТЬ • УР. %d/5 • %d золота + 1 пепел" % [temper_level, economy.temper_cost(state)]
-	temper_button.disabled = not state.has_blade or temper_level >= 5 or int(state.materials.get("dragon_ash", 0)) < 1 or state.gold < economy.temper_cost(state)
-	var armor_level: int = int(state.dragon_armor_level)
-	var armor_cost: int = economy.dragon_armor_cost(state)
-	scale_upgrade_button.text = "ЧЕШУЙЧАТЫЙ ДОСПЕХ • УР. %d/5 • %d золота + 1 чешуя" % [armor_level, armor_cost]
-	scale_upgrade_button.disabled = armor_level >= 5 or int(state.materials.get("dragon_scales", 0)) < 1 or state.gold < armor_cost
-	var void_level: int = int(state.void_mastery_level)
-	var void_cost: int = economy.void_mastery_cost(state)
-	void_upgrade_button.text = "ЗНАНИЕ ПУСТОТЫ • УР. %d/5 • %d золота + 1 ядро" % [void_level, void_cost]
-	void_upgrade_button.disabled = void_level >= 5 or int(state.materials.get("void_cores", 0)) < 1 or state.gold < void_cost
-	var craft_ids := ["ashen_greatsword", "rift_spear", "storm_twins"]
-	var weapon_catalog := WeaponSystem.new()
-	for index in range(craft_buttons.size()):
-		var craft_id: String = craft_ids[index]
-		var recipe: Dictionary = weapon_catalog.get_weapon(craft_id)
-		var owned: bool = state.owned_weapon_ids.has(craft_id)
-		var gold_cost: int = int(recipe.get("recipe_gold", 0))
-		var ash_cost: int = int(recipe.get("recipe_ash", 0))
-		var scale_cost: int = int(recipe.get("recipe_scales", 0))
-		var core_cost: int = int(recipe.get("recipe_cores", 0))
-		var short_name: String = ["ДВУРУЧНИК ПЕПЛА", "КОПЬЁ РАЗЛОМА", "ПАРНЫЕ КЛИНКИ"][index]
-		craft_buttons[index].text = "%s • %d зол. • П%d Ч%d Я%d" % [short_name, gold_cost, ash_cost, scale_cost, core_cost] if not owned else "РЕЦЕПТ ОСВОЕН: %s" % short_name
-		craft_buttons[index].tooltip_text = str(recipe.get("description", ""))
-		craft_buttons[index].disabled = owned or state.gold < gold_cost or int(state.materials.get("dragon_ash", 0)) < ash_cost or int(state.materials.get("dragon_scales", 0)) < scale_cost or int(state.materials.get("void_cores", 0)) < core_cost
-	var selected: Dictionary = weapon_system.get_weapon(state.selected_weapon_id)
-	weapon_select_button.text = "СЛЕДУЮЩАЯ ЗАГОТОВКА: %s" % str(selected.name)
-	weapon_select_button.disabled = weapon_system.unlocked(state).size() <= 1
-	strike_button.disabled = not state.has_blade
-	sell_button.disabled = not state.has_blade
-	cool_button.disabled = not state.has_blade
-	relic_button.disabled = not state.has_blade
-	tribute_button.disabled = state.gold < state.tribute_goal or state.contract_complete
-	var upgrade_ids := ["bellows", "anvil", "luck"]
-	for index in range(upgrade_buttons.size()):
-		var upgrade_id: String = upgrade_ids[index]
-		var level := int(state.upgrades.get(upgrade_id, 0))
-		var cost := economy.upgrade_cost(state, upgrade_id)
-		upgrade_buttons[index].text = "%s\nУР. %d • %d" % [economy.upgrade_name(upgrade_id), level, cost]
-		upgrade_buttons[index].disabled = state.gold < cost or level >= 5
-		upgrade_buttons[index].tooltip_text = economy.upgrade_description(upgrade_id)
-	if state.contract_complete:
-		tribute_button.text = "КОНТРАКТ ЗАВЕРШЁН • ДРАКОН ЖДЁТ"
-	battle_button.disabled = not state.contract_complete or not state.has_blade
-	battle_button.text = "НОВАЯ ОХОТА • %s" % dragon_combat.FORM_NAMES[state.dragon_victories % dragon_combat.FORM_NAMES.size()] if state.dragon_defeated else "ВОЙТИ В ЛОГОВО ДРАКОНА"
-
-	var offers := merchant.stock(state)
-	var owned_count := merchant.rare_owned_count(state)
-	merchant_status.text = "Золото: %d • редких чертежей собрано: %d/3" % [state.gold, owned_count]
-	for index in range(merchant_offer_labels.size()):
-		if index < offers.size():
-			var offer: Dictionary = offers[index]
-			merchant_offer_labels[index].text = merchant.offer_text(offer)
-			merchant_offer_labels[index].visible = true
-			merchant_buy_buttons[index].visible = true
-			merchant_buy_buttons[index].disabled = state.gold < int(offer.price) or state.owned_weapon_ids.has(str(offer.id))
-			merchant_buy_buttons[index].text = "Уже куплено" if state.owned_weapon_ids.has(str(offer.id)) else "Купить • %d золота" % int(offer.price)
-		else:
-			merchant_offer_labels[index].visible = false
-			merchant_buy_buttons[index].visible = false
-	_update_battle_ui()
-	if autosave_enabled and game_started:
-		SaveManager.save_game(state)
+    _setup_input()
+    _build_world()
+    _build_player()
+    _build_infected()
+    _build_ui()
+    _load_game()
+    refresh_hud()
+    show_message("GREYWOOD — Найди припасы и вернись к лагерю")
+
+func _process(delta: float) -> void:
+    message_time = maxf(0.0, message_time - delta)
+    if message_time <= 0.0 and message_label:
+        message_label.text = ""
+
+func _setup_input() -> void:
+    _add_key("move_forward", KEY_W)
+    _add_key("move_forward", KEY_UP)
+    _add_key("move_back", KEY_S)
+    _add_key("move_back", KEY_DOWN)
+    _add_key("move_left", KEY_A)
+    _add_key("move_left", KEY_LEFT)
+    _add_key("move_right", KEY_D)
+    _add_key("move_right", KEY_RIGHT)
+    _add_key("sprint", KEY_SHIFT)
+    _add_key("interact", KEY_E)
+    _add_key("attack", KEY_SPACE)
+
+func _add_key(action: String, keycode: Key) -> void:
+    if not InputMap.has_action(action):
+        InputMap.add_action(action)
+    var event := InputEventKey.new()
+    event.physical_keycode = keycode
+    InputMap.action_add_event(action, event)
+
+func _build_world() -> void:
+    var env := WorldEnvironment.new()
+    var environment := Environment.new()
+    environment.background_mode = Environment.BG_COLOR
+    environment.background_color = Color(0.42, 0.49, 0.46)
+    environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+    environment.ambient_light_color = Color(0.72, 0.77, 0.72)
+    environment.ambient_light_energy = 0.7
+    env.environment = environment
+    add_child(env)
+    var sun := DirectionalLight3D.new()
+    sun.rotation_degrees = Vector3(-52, -28, 0)
+    sun.light_energy = 1.15
+    sun.shadow_enabled = true
+    add_child(sun)
+    _box(self, "Ground", Vector3(0, -0.35, 0), Vector3(64, 0.6, 64), Color(0.28, 0.34, 0.27), false)
+    _box(self, "Main road", Vector3(0, -0.02, 0), Vector3(9, 0.08, 64), Color(0.18, 0.2, 0.19), false)
+    _box(self, "Cross road", Vector3(0, 0.025, -5), Vector3(64, 0.08, 7), Color(0.2, 0.22, 0.2), false)
+    for i in range(9):
+        var z := -28.0 + float(i) * 7.0
+        _box(self, "Road marking", Vector3(0, 0.08, z), Vector3(0.18, 0.025, 3.0), Color(0.72, 0.68, 0.52), false)
+    _build_house("House A", Vector3(-17, 0, -17), Color(0.54, 0.43, 0.34))
+    _build_house("House B", Vector3(17, 0, -17), Color(0.43, 0.49, 0.46))
+    _build_house("House C", Vector3(-18, 0, 12), Color(0.55, 0.5, 0.39))
+    _build_shop(Vector3(17, 0, 4))
+    _build_garage(Vector3(-17, 0, -1))
+    _build_gas_station(Vector3(18, 0, 23))
+    _build_camp()
+    _scatter_trees()
+    _make_prop("Wooden crate", "wood", 4, 2, Vector3(-11, 0.55, -12), Vector3(1.0, 1.1, 1.0), Color(0.43, 0.27, 0.15))
+    _make_prop("Old cabinet", "wood", 5, 3, Vector3(-14, 0.8, 14), Vector3(1.2, 1.6, 0.6), Color(0.38, 0.28, 0.2))
+    _make_prop("Metal barrel", "scrap", 5, 3, Vector3(12, 0.7, 11), Vector3(0.85, 1.4, 0.85), Color(0.32, 0.39, 0.36))
+    _make_prop("Plastic bin", "plastic", 3, 2, Vector3(21, 0.55, 7), Vector3(1.0, 1.1, 0.8), Color(0.22, 0.35, 0.36))
+    _make_prop("Supply bag", "food", 2, 1, Vector3(-4, 0.45, 19), Vector3(0.9, 0.8, 0.7), Color(0.48, 0.39, 0.25))
+    _make_prop("Medical box", "medicine", 2, 1, Vector3(22, 0.4, -13), Vector3(0.8, 0.65, 0.7), Color(0.72, 0.7, 0.6))
+
+func _build_house(label: String, pos: Vector3, wall_color: Color) -> void:
+    var root := Node3D.new()
+    root.name = label
+    root.position = pos
+    add_child(root)
+    _box(root, "Walls", Vector3(0, 2, 0), Vector3(9, 4, 8), wall_color, true)
+    _box(root, "Roof", Vector3(0, 4.35, 0), Vector3(9.8, 0.7, 8.8), Color(0.25, 0.28, 0.27), true)
+    _box(root, "Door", Vector3(0, 1.05, 4.06), Vector3(1.3, 2.1, 0.12), Color(0.2, 0.16, 0.13), true)
+    _box(root, "Window left", Vector3(-3.1, 2.1, 4.08), Vector3(1.5, 1.2, 0.12), Color(0.19, 0.28, 0.3), true)
+    _box(root, "Window right", Vector3(3.1, 2.1, 4.08), Vector3(1.5, 1.2, 0.12), Color(0.19, 0.28, 0.3), true)
+
+func _build_shop(pos: Vector3) -> void:
+    var root := Node3D.new()
+    root.position = pos
+    root.name = "Greywood Market"
+    add_child(root)
+    _box(root, "Shop", Vector3(0, 2, 0), Vector3(10, 4, 9), Color(0.48, 0.47, 0.36), true)
+    _box(root, "Flat roof", Vector3(0, 4.2, 0), Vector3(10.5, 0.45, 9.5), Color(0.22, 0.27, 0.26), true)
+    _box(root, "Sign", Vector3(0, 3.5, 4.62), Vector3(5.2, 0.7, 0.18), Color(0.7, 0.57, 0.34), true)
+    _make_prop("Shop shelf", "scrap", 4, 2, pos + Vector3(-2, 0.8, 6), Vector3(1.2, 1.6, 0.5), Color(0.34, 0.32, 0.26))
+
+func _build_garage(pos: Vector3) -> void:
+    var root := Node3D.new()
+    root.position = pos
+    root.name = "Garage"
+    add_child(root)
+    _box(root, "Garage walls", Vector3(0, 1.8, 0), Vector3(10, 3.6, 8), Color(0.42, 0.43, 0.39), true)
+    _box(root, "Roof", Vector3(0, 3.9, 0), Vector3(10.5, 0.5, 8.5), Color(0.2, 0.24, 0.23), true)
+    _box(root, "Garage opening", Vector3(0, 1.3, 4.05), Vector3(4.6, 2.6, 0.12), Color(0.17, 0.19, 0.18), true)
+    _make_prop("Tool cabinet", "scrap", 6, 3, pos + Vector3(6, 0.8, 1), Vector3(1.0, 1.6, 0.7), Color(0.34, 0.38, 0.35))
+
+func _build_gas_station(pos: Vector3) -> void:
+    var root := Node3D.new()
+    root.position = pos
+    root.name = "Gas station"
+    add_child(root)
+    _box(root, "Canopy", Vector3(0, 3.8, 0), Vector3(12, 0.5, 8), Color(0.55, 0.48, 0.34), true)
+    for x in [-5.0, 5.0]:
+        for z in [-3.0, 3.0]:
+            _box(root, "Canopy post", Vector3(x, 1.9, z), Vector3(0.35, 3.8, 0.35), Color(0.35, 0.36, 0.32), true)
+    _make_prop("Fuel pump", "scrap", 4, 3, pos + Vector3(0, 0.8, 0), Vector3(0.9, 1.6, 0.8), Color(0.55, 0.27, 0.19))
+
+func _build_camp() -> void:
+    _box(self, "Camp tarp", camp_position + Vector3(0, 2.4, 0), Vector3(5.5, 0.25, 4.5), Color(0.32, 0.38, 0.3), false)
+    _box(self, "Camp bed", camp_position + Vector3(-1.4, 0.35, 0), Vector3(1.1, 0.35, 2.2), Color(0.37, 0.28, 0.2), false)
+    var fire := MeshInstance3D.new()
+    var sphere := SphereMesh.new()
+    sphere.radius = 0.38
+    sphere.height = 0.7
+    fire.mesh = sphere
+    fire.position = camp_position + Vector3(1.1, 0.35, 0.3)
+    var fire_mat := StandardMaterial3D.new()
+    fire_mat.albedo_color = Color(1.0, 0.35, 0.08)
+    fire_mat.emission_enabled = true
+    fire_mat.emission = Color(1.0, 0.16, 0.025)
+    fire_mat.emission_energy_multiplier = 1.8
+    fire.material_override = fire_mat
+    add_child(fire)
+
+func _scatter_trees() -> void:
+    var positions := [Vector3(-27,0,-25),Vector3(-27,0,-10),Vector3(-28,0,8),Vector3(-27,0,25),Vector3(28,0,-26),Vector3(28,0,-8),Vector3(28,0,10),Vector3(27,0,27),Vector3(-8,0,-28),Vector3(9,0,-29)]
+    for p in positions:
+        _box(self, "Tree trunk", p + Vector3(0, 1.1, 0), Vector3(0.7, 2.2, 0.7), Color(0.28, 0.2, 0.14), true)
+        var crown := MeshInstance3D.new()
+        var sphere := SphereMesh.new()
+        sphere.radius = 1.8
+        sphere.height = 3.4
+        crown.mesh = sphere
+        crown.position = p + Vector3(0, 3.2, 0)
+        var mat := StandardMaterial3D.new()
+        mat.albedo_color = Color(0.2, 0.31, 0.23)
+        mat.roughness = 1.0
+        crown.material_override = mat
+        add_child(crown)
+
+func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color: Color, solid: bool) -> Node3D:
+    if solid:
+        var body := StaticBody3D.new()
+        var collision := CollisionShape3D.new()
+        var shape := BoxShape3D.new()
+        shape.size = dimensions
+        collision.shape = shape
+        collision.position = pos
+        body.add_child(collision)
+        parent.add_child(body)
+        body.name = label
+        var mesh_node := MeshInstance3D.new()
+        var mesh := BoxMesh.new()
+        mesh.size = dimensions
+        mesh_node.mesh = mesh
+        mesh_node.position = pos
+        var mat := StandardMaterial3D.new()
+        mat.albedo_color = color
+        mat.roughness = 0.92
+        mesh_node.material_override = mat
+        body.add_child(mesh_node)
+        return body
+    var visual := MeshInstance3D.new()
+    var box_mesh := BoxMesh.new()
+    box_mesh.size = dimensions
+    visual.mesh = box_mesh
+    visual.position = pos
+    var visual_mat := StandardMaterial3D.new()
+    visual_mat.albedo_color = color
+    visual_mat.roughness = 0.95
+    visual.material_override = visual_mat
+    parent.add_child(visual)
+    visual.name = label
+    return visual
+
+func _make_prop(label: String, resource: String, amount: int, hits: float, pos: Vector3, dimensions: Vector3, color: Color) -> void:
+    var body := StaticBody3D.new()
+    body.set_script(PropScript)
+    body.position = pos
+    body.call("setup", label, resource, amount, hits, self)
+    var collision := CollisionShape3D.new()
+    var shape := BoxShape3D.new()
+    shape.size = dimensions
+    collision.shape = shape
+    body.add_child(collision)
+    var visual := MeshInstance3D.new()
+    var mesh := BoxMesh.new()
+    mesh.size = dimensions
+    visual.mesh = mesh
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.roughness = 0.9
+    visual.material_override = mat
+    body.add_child(visual)
+    add_child(body)
+    props.append(body)
+
+func _build_player() -> void:
+    player = CharacterBody3D.new()
+    player.set_script(PlayerScript)
+    player.position = Vector3(-9, 0.2, 13)
+    player.main_game = self
+    add_child(player)
+
+func _build_infected() -> void:
+    for p in [Vector3(5,0.2,-15), Vector3(21,0.2,15), Vector3(-20,0.2,22)]:
+        var enemy := CharacterBody3D.new()
+        enemy.set_script(InfectedScript)
+        enemy.position = p
+        add_child(enemy)
+        enemy.set("target", player)
+        infected.append(enemy)
+
+func _build_ui() -> void:
+    var layer := CanvasLayer.new()
+    add_child(layer)
+    var panel := PanelContainer.new()
+    panel.position = Vector2(18, 16)
+    panel.custom_minimum_size = Vector2(300, 92)
+    layer.add_child(panel)
+    var vbox := VBoxContainer.new()
+    panel.add_child(vbox)
+    hud_label = Label.new()
+    hud_label.add_theme_font_size_override("font_size", 17)
+    vbox.add_child(hud_label)
+    health_bar = ProgressBar.new()
+    health_bar.custom_minimum_size = Vector2(270, 13)
+    health_bar.show_percentage = false
+    vbox.add_child(health_bar)
+    stamina_bar = ProgressBar.new()
+    stamina_bar.custom_minimum_size = Vector2(270, 10)
+    stamina_bar.show_percentage = false
+    vbox.add_child(stamina_bar)
+    message_label = Label.new()
+    message_label.position = Vector2(350, 22)
+    message_label.size = Vector2(580, 40)
+    message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    message_label.add_theme_font_size_override("font_size", 19)
+    layer.add_child(message_label)
+    joystick = Control.new()
+    joystick.set_script(JoystickScript)
+    joystick.position = Vector2(28, 500)
+    joystick.size = Vector2(180, 180)
+    joystick.anchor_top = 1.0
+    joystick.anchor_bottom = 1.0
+    joystick.offset_top = -205
+    joystick.offset_bottom = -25
+    layer.add_child(joystick)
+    joystick.vector_changed.connect(_on_joystick_changed)
+    var action_button := _make_ui_button(layer, "ACTION", Vector2(-165, -125), Vector2(120, 64))
+    action_button.anchor_left = 1.0
+    action_button.anchor_right = 1.0
+    action_button.pressed.connect(interact)
+    var attack_button := _make_ui_button(layer, "ATTACK", Vector2(-165, -48), Vector2(120, 64))
+    attack_button.anchor_left = 1.0
+    attack_button.anchor_right = 1.0
+    attack_button.pressed.connect(func(): player.call("perform_attack"))
+    var save_button := _make_ui_button(layer, "SAVE", Vector2(-300, 16), Vector2(100, 48))
+    save_button.anchor_left = 1.0
+    save_button.anchor_right = 1.0
+    save_button.pressed.connect(save_game)
+
+func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vector2) -> Button:
+    var button := Button.new()
+    button.text = label
+    button.position = pos
+    button.size = dimensions
+    button.add_theme_font_size_override("font_size", 17)
+    parent.add_child(button)
+    return button
+
+func _on_joystick_changed(value: Vector2) -> void:
+    if player:
+        player.touch_vector = value
+
+func interact() -> void:
+    if not player:
+        return
+    if player.global_position.distance_to(camp_position) < 5.0:
+        player.health = player.max_health
+        player.stamina = player.max_stamina
+        save_game()
+        show_message("Ты отдохнул. Прогресс сохранён.")
+        refresh_hud()
+        return
+    var nearest: Node = null
+    var best := 3.2
+    for prop in props:
+        if is_instance_valid(prop):
+            var d: float = player.global_position.distance_to(prop.global_position)
+            if d < best:
+                best = d
+                nearest = prop
+    if nearest:
+        nearest.call("damage_object")
+    else:
+        show_message("Подойди ближе к объекту или лагерю.")
+
+func player_attack() -> void:
+    var nearest: Node = null
+    var best := 2.2
+    for enemy in infected:
+        if is_instance_valid(enemy):
+            var d: float = player.global_position.distance_to(enemy.global_position)
+            if d < best:
+                best = d
+                nearest = enemy
+    if nearest:
+        nearest.call("take_hit")
+        show_message("Удар!")
+    else:
+        show_message("Никого рядом.")
+
+func add_resource(resource: String, amount: int) -> void:
+    if not inventory.has(resource):
+        inventory[resource] = 0
+    inventory[resource] += amount
+    refresh_hud()
+
+func mark_salvaged(prop: Node) -> void:
+    var key := "%s@%d,%d,%d" % [prop.object_name, roundi(prop.global_position.x), roundi(prop.global_position.y), roundi(prop.global_position.z)]
+    if not salvaged_ids.has(key):
+        salvaged_ids.append(key)
+
+func refresh_hud() -> void:
+    if not player or not hud_label:
+        return
+    hud_label.text = "AFTERFALL  |  GREYWOOD\nHP %d   WOOD %d   SCRAP %d   FOOD %d" % [roundi(player.health), inventory.wood, inventory.scrap, inventory.food]
+    health_bar.value = player.health
+    health_bar.max_value = player.max_health
+    stamina_bar.value = player.stamina
+    stamina_bar.max_value = player.max_stamina
+
+func show_message(value: String) -> void:
+    if message_label:
+        message_label.text = value
+        message_time = 2.6
+
+func player_died() -> void:
+    show_message("Ты погиб. Перезапусти игру, чтобы продолжить.")
+    save_game()
+
+func save_game() -> void:
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "inventory": inventory, "salvaged": salvaged_ids}
+    var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+    if file:
+        file.store_string(JSON.stringify(data))
+        file.close()
+        show_message("Игра сохранена.")
+
+func _load_game() -> void:
+    if not FileAccess.file_exists(SAVE_PATH):
+        return
+    var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+    if not file:
+        return
+    var parsed = JSON.parse_string(file.get_as_text())
+    file.close()
+    if typeof(parsed) != TYPE_DICTIONARY:
+        return
+    var saved_position = parsed.get("position", [])
+    if saved_position is Array and saved_position.size() == 3:
+        player.global_position = Vector3(float(saved_position[0]), float(saved_position[1]), float(saved_position[2]))
+    player.health = float(parsed.get("health", player.max_health))
+    var saved_inventory = parsed.get("inventory", {})
+    if saved_inventory is Dictionary:
+        for key in saved_inventory:
+            inventory[key] = int(saved_inventory[key])
+    var saved_ids = parsed.get("salvaged", [])
+    if saved_ids is Array:
+        for saved_id in saved_ids:
+            salvaged_ids.append(str(saved_id))
+    for prop in props.duplicate():
+        if is_instance_valid(prop):
+            var key := "%s@%d,%d,%d" % [prop.object_name, roundi(prop.global_position.x), roundi(prop.global_position.y), roundi(prop.global_position.z)]
+            if salvaged_ids.has(key):
+                props.erase(prop)
+                prop.queue_free()
