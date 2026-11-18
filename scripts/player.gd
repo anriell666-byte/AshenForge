@@ -10,6 +10,8 @@ var touch_vector: Vector2 = Vector2.ZERO
 var main_game
 var attack_cooldown: float = 0.0
 var invulnerable: float = 0.0
+var follow_camera: Camera3D
+var camera_offset := Vector3(0.0, 12.5, 11.5)
 
 func _ready() -> void:
     health = max_health
@@ -42,12 +44,14 @@ func _ready() -> void:
     head_mat.albedo_color = Color(0.72, 0.58, 0.45)
     head.material_override = head_mat
     add_child(head)
-    var camera := Camera3D.new()
-    camera.position = Vector3(0, 12.5, 11.5)
-    camera.rotation_degrees.x = -47.0
-    camera.current = true
-    camera.fov = 52.0
-    add_child(camera)
+    follow_camera = Camera3D.new()
+    follow_camera.name = "FollowCamera"
+    follow_camera.top_level = true
+    follow_camera.global_position = global_position + camera_offset
+    follow_camera.rotation_degrees = Vector3(-47.0, 0.0, 0.0)
+    follow_camera.current = true
+    follow_camera.fov = 52.0
+    add_child(follow_camera)
 
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)
@@ -72,6 +76,9 @@ func _physics_process(delta: float) -> void:
     if direction.length() > 0.1:
         rotation.y = atan2(-direction.x, -direction.z)
     move_and_slide()
+    # Keep the camera centered on the player without inheriting player rotation.
+    if is_instance_valid(follow_camera):
+        follow_camera.global_position = global_position + camera_offset
 
 func take_damage(amount: float) -> void:
     if invulnerable > 0.0:
