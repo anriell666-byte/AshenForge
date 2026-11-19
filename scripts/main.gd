@@ -577,7 +577,12 @@ func player_died() -> void:
     save_game()
 
 func save_game() -> void:
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina}
+    var saved_loot: Array[Dictionary] = []
+    for drop in loot_drops:
+        var node: Node3D = drop.get("node")
+        if is_instance_valid(node):
+            saved_loot.append({"resource": str(drop.get("resource", "scrap")), "amount": int(drop.get("amount", 1)), "position": [node.global_position.x, node.global_position.y, node.global_position.z]})
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -603,6 +608,13 @@ func _load_game() -> void:
     if saved_inventory is Dictionary:
         for key in saved_inventory:
             inventory[key] = int(saved_inventory[key])
+    var saved_loot = parsed.get("loot", [])
+    if saved_loot is Array:
+        for saved_drop in saved_loot:
+            if saved_drop is Dictionary:
+                var saved_pos = saved_drop.get("position", [])
+                if saved_pos is Array and saved_pos.size() == 3:
+                    spawn_loot(str(saved_drop.get("resource", "scrap")), maxi(1, int(saved_drop.get("amount", 1))), Vector3(float(saved_pos[0]), float(saved_pos[1]), float(saved_pos[2])) - Vector3(0, 0.45, 0))
     player_xp = int(parsed.get("xp", 0))
     player_level = maxi(1, int(parsed.get("level", 1)))
     skill_points = int(parsed.get("skill_points", 0))
