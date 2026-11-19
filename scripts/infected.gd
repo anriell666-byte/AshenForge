@@ -51,4 +51,9 @@ func _physics_process(delta: float) -> void:
 func take_hit() -> void:
     health -= 1.0
     if health <= 0.0:
+        if is_instance_valid(target):
+            var game = target.get("main_game")
+            if is_instance_valid(game):
+                game.call("_gain_xp", 25)
+                game.call("show_message", "Заражённый устранён. +25 XP")
         queue_free()
