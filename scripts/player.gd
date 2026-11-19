@@ -17,6 +17,10 @@ var attack_cooldown: float = 0.0
 var invulnerable: float = 0.0
 var follow_camera: Camera3D
 var camera_offset := Vector3(0.0, 12.5, 11.5)
+var camera_yaw: float = 0.0
+var is_sneaking: bool = false
+var equipped_weapon: String = ""
+var equipped_tool: String = ""
 
 func _ready() -> void:
     health = max_health
@@ -69,6 +73,7 @@ func _physics_process(delta: float) -> void:
     var wants_sprint := Input.is_action_pressed("sprint") or touch_sprinting
     var sprinting := wants_sprint and stamina > 0.0 and direction.length() > 0.1
     var speed := sprint_speed if sprinting else move_speed
+    if is_sneaking: speed *= 0.52
     if sprinting:
         stamina = maxf(0.0, stamina - STAMINA_DRAIN_RATE * delta)
         stamina_regen_delay = STAMINA_REGEN_DELAY
@@ -76,8 +81,9 @@ func _physics_process(delta: float) -> void:
         stamina_regen_delay = maxf(0.0, stamina_regen_delay - delta)
         if stamina_regen_delay <= 0.0:
             stamina = minf(max_stamina, stamina + STAMINA_REGEN_RATE * delta)
-    velocity.x = direction.x * speed
-    velocity.z = direction.z * speed
+    var rotated := Vector2(direction.x, direction.z).rotated(camera_yaw)
+    velocity.x = rotated.x * speed
+    velocity.z = rotated.y * speed
     if not is_on_floor():
         velocity.y -= 22.0 * delta
     else:
@@ -87,11 +93,15 @@ func _physics_process(delta: float) -> void:
     move_and_slide()
     # Keep the camera centered on the player without inheriting player rotation.
     if is_instance_valid(follow_camera):
-        follow_camera.global_position = global_position + camera_offset
+        follow_camera.global_position = global_position + camera_offset.rotated(Vector3.UP, camera_yaw)
+        follow_camera.rotation_degrees.y = rad_to_deg(camera_yaw)
     if is_instance_valid(main_game):
         main_game.call("refresh_stamina_hud")
         if Engine.get_physics_frames() % 12 == 0:
             main_game.call("_refresh_inventory_ui")
+
+func rotate_camera(amount: float) -> void:
+    camera_yaw += amount
 
 func take_damage(amount: float) -> void:
     if invulnerable > 0.0:
