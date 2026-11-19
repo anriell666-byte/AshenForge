@@ -5,6 +5,7 @@ const PropScript = preload("res://scripts/destructible.gd")
 const InfectedScript = preload("res://scripts/infected.gd")
 const JoystickScript = preload("res://scripts/touch_joystick.gd")
 const ExpansionScript = preload("res://scripts/expansion.gd")
+const VisualUpgradeScript = preload("res://scripts/visual_upgrade.gd")
 const SAVE_PATH := "user://afterfall_save.json"
 
 var player
@@ -37,6 +38,10 @@ func _ready() -> void:
     _setup_input()
     _build_world()
     _build_player()
+    var visual_upgrade = Node.new()
+    visual_upgrade.set_script(VisualUpgradeScript)
+    add_child(visual_upgrade)
+    visual_upgrade.call("setup", self, player)
     _build_infected()
     _build_ui()
     _load_game()
