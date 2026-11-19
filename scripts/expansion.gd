@@ -8,6 +8,8 @@ var status_label: Label
 var animal_data := {}
 func setup(owner) -> void:
     game = owner
+    for key in game.saved_expansion_state:
+        if crafted.has(key): crafted[key] = bool(game.saved_expansion_state[key])
     _hide_roofs()
     _add_interior_loot()
     _spawn_wildlife()
