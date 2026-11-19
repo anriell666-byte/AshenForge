@@ -37,6 +37,9 @@ func _hide_roofs() -> void:
                     if child is CollisionShape3D: child.disabled = true
 func _add_interior_loot() -> void:
     # Interior props are positioned inside the now-open buildings.
+    game._make_prop("Barricaded entrance A", "wood", 3, 5, Vector3(-17,1.0,-13), Vector3(1.5,2.1,0.2), Color(0.28,0.19,0.12))
+    game._make_prop("Barricaded entrance B", "wood", 3, 5, Vector3(17,1.0,-13), Vector3(1.5,2.1,0.2), Color(0.28,0.19,0.12))
+    game._make_prop("Barricaded entrance C", "wood", 3, 5, Vector3(-18,1.0,16), Vector3(1.5,2.1,0.2), Color(0.28,0.19,0.12))
     game._make_prop("House medicine cabinet", "medicine", 2, 2, Vector3(-17,0.55,-17), Vector3(0.8,1.1,0.45), Color(0.62,0.65,0.57))
     game._make_prop("House food cupboard", "food", 4, 2, Vector3(17,0.6,-17), Vector3(1.0,1.2,0.5), Color(0.45,0.32,0.22))
     game._make_prop("Hidden supply chest", "scrap", 5, 3, Vector3(-18,0.5,12), Vector3(1.1,0.8,0.7), Color(0.32,0.27,0.2))
@@ -103,6 +106,7 @@ func _add_controls() -> void:
     status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     col.add_child(status_label)
     _recipe_button(col,"Каменный топор","hatchet",{"wood":3,"scrap":2}, "Разборка объектов быстрее")
+    _recipe_button(col,"Монтировка","crowbar",{"wood":1,"scrap":4}, "Взлом баррикад и дверей")
     _recipe_button(col,"Самодельное копьё","spear",{"wood":4,"scrap":1}, "Урон в бою увеличен")
     _recipe_button(col,"Лук охотника","bow",{"wood":5,"cloth":2}, "Дальняя охота (прототип)")
     var close := game._make_ui_button(col,"ЗАКРЫТЬ",Vector2.ZERO,Vector2.ZERO)
@@ -125,8 +129,8 @@ func _craft(id: String, cost: Dictionary, note: String) -> void:
             return
     for key in cost: game.inventory[key] -= int(cost[key])
     crafted[id] = true
-    game.player.equipped_weapon = id
-    game.player.equipped_tool = "hatchet" if id == "hatchet" else game.player.equipped_tool
+    if id == "hatchet" or id == "crowbar": game.player.equipped_tool = id
+    else: game.player.equipped_weapon = id
     game.show_message("Создано: "+id+" — "+note)
     game._refresh_inventory_ui()
     _refresh_status()
