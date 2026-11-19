@@ -70,6 +70,12 @@ jobs:
           mkdir -p build
           sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
           "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path . --export-debug Android build/afterfall-debug.apk
+      - name: Verify Android package
+        run: |
+          SDK_BUILD_TOOLS="$ANDROID_HOME/build-tools/34.0.0"
+          "$SDK_BUILD_TOOLS/apksigner" verify --verbose --print-certs build/afterfall-debug.apk
+          "$SDK_BUILD_TOOLS/aapt" dump badging build/afterfall-debug.apk | tee apk-badging.txt
+          "$SDK_BUILD_TOOLS/zipalign" -c -v 4 build/afterfall-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: afterfall-android-debug
