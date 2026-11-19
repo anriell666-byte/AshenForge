@@ -278,6 +278,11 @@ func _build_ui() -> void:
     action_button.anchor_left = 1.0
     action_button.anchor_right = 1.0
     action_button.pressed.connect(interact)
+    var run_button := _make_ui_button(layer, "RUN", Vector2(-300, -125), Vector2(120, 64))
+    run_button.anchor_left = 1.0
+    run_button.anchor_right = 1.0
+    run_button.button_down.connect(_set_touch_sprint.bind(true))
+    run_button.button_up.connect(_set_touch_sprint.bind(false))
     var attack_button := _make_ui_button(layer, "ATTACK", Vector2(-165, -48), Vector2(120, 64))
     attack_button.anchor_left = 1.0
     attack_button.anchor_right = 1.0
@@ -295,6 +300,10 @@ func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vect
     button.add_theme_font_size_override("font_size", 17)
     parent.add_child(button)
     return button
+
+func _set_touch_sprint(active: bool) -> void:
+    if player:
+        player.touch_sprinting = active
 
 func _on_joystick_changed(value: Vector2) -> void:
     if player:
@@ -349,6 +358,12 @@ func mark_salvaged(prop: Node) -> void:
     if not salvaged_ids.has(key):
         salvaged_ids.append(key)
 
+func refresh_stamina_hud() -> void:
+    if not player or not stamina_bar:
+        return
+    stamina_bar.max_value = player.max_stamina
+    stamina_bar.value = player.stamina
+
 func refresh_hud() -> void:
     if not player or not hud_label:
         return
@@ -368,7 +383,7 @@ func player_died() -> void:
     save_game()
 
 func save_game() -> void:
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "inventory": inventory, "salvaged": salvaged_ids}
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -389,6 +404,7 @@ func _load_game() -> void:
     if saved_position is Array and saved_position.size() == 3:
         player.global_position = Vector3(float(saved_position[0]), float(saved_position[1]), float(saved_position[2]))
     player.health = float(parsed.get("health", player.max_health))
+    player.stamina = clampf(float(parsed.get("stamina", player.max_stamina)), 0.0, player.max_stamina)
     var saved_inventory = parsed.get("inventory", {})
     if saved_inventory is Dictionary:
         for key in saved_inventory:
