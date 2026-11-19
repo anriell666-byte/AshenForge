@@ -106,5 +106,5 @@ func take_damage(amount: float) -> void:
 func perform_attack() -> void:
     if attack_cooldown > 0.0 or main_game == null:
         return
-    attack_cooldown = 0.55
+    attack_cooldown = 0.45
     main_game.call("player_attack")

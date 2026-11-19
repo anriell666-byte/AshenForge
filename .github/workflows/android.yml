@@ -42,9 +42,14 @@ jobs:
           export/android/android_sdk_path = "/usr/local/lib/android/sdk"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
-      - name: Prepare persistent debug signing key
+      - name: Restore persistent Android signing key
+        env:
+          AFTERFALL_KEYSTORE_BASE64: ${{ secrets.AFTERFALL_KEYSTORE_BASE64 }}
         run: |
-          test -f android/afterfall-debug.keystore
+          test -n "$AFTERFALL_KEYSTORE_BASE64" || { echo "Add AFTERFALL_KEYSTORE_BASE64 in GitHub Actions secrets."; exit 1; }
+          mkdir -p android
+          printf '%s' "$AFTERFALL_KEYSTORE_BASE64" | base64 --decode > android/afterfall-debug.keystore
+          chmod 600 android/afterfall-debug.keystore
       - name: Validate project
         shell: bash
         run: |
@@ -59,8 +64,9 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/android/afterfall-debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: afterfalldebug
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: afterfall-debug-store
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: ${{ secrets.AFTERFALL_KEYSTORE_PASSWORD }}
         run: |
+          test -n "$GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD" || { echo "Add AFTERFALL_KEYSTORE_PASSWORD in GitHub Actions secrets."; exit 1; }
           mkdir -p build
           sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
           "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path . --export-debug Android build/afterfall-debug.apk

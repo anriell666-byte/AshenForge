@@ -296,22 +296,18 @@ func _build_ui() -> void:
     joystick.offset_bottom = -25
     layer.add_child(joystick)
     joystick.vector_changed.connect(_on_joystick_changed)
-    var action_button := _make_ui_button(layer, "ACTION", Vector2(-165, -125), Vector2(120, 64))
-    action_button.anchor_left = 1.0
-    action_button.anchor_right = 1.0
+    var attack_button := _make_ui_button(layer, "ATTACK", Vector2.ZERO, Vector2(120, 64))
+    _place_bottom_right(attack_button, 24.0, 24.0)
+    attack_button.pressed.connect(func(): player.call("perform_attack"))
+    var action_button := _make_ui_button(layer, "ACTION", Vector2.ZERO, Vector2(120, 64))
+    _place_bottom_right(action_button, 24.0, 100.0)
     action_button.pressed.connect(interact)
-    var run_button := _make_ui_button(layer, "RUN", Vector2(-300, -125), Vector2(120, 64))
-    run_button.anchor_left = 1.0
-    run_button.anchor_right = 1.0
+    var run_button := _make_ui_button(layer, "RUN", Vector2.ZERO, Vector2(120, 64))
+    _place_bottom_right(run_button, 160.0, 24.0)
     run_button.button_down.connect(_set_touch_sprint.bind(true))
     run_button.button_up.connect(_set_touch_sprint.bind(false))
-    var attack_button := _make_ui_button(layer, "ATTACK", Vector2(-165, -48), Vector2(120, 64))
-    attack_button.anchor_left = 1.0
-    attack_button.anchor_right = 1.0
-    attack_button.pressed.connect(func(): player.call("perform_attack"))
-    var save_button := _make_ui_button(layer, "SAVE", Vector2(-300, 16), Vector2(100, 48))
-    save_button.anchor_left = 1.0
-    save_button.anchor_right = 1.0
+    var save_button := _make_ui_button(layer, "SAVE", Vector2.ZERO, Vector2(100, 48))
+    _place_bottom_right(save_button, 160.0, 100.0)
     save_button.pressed.connect(save_game)
     var bag_button := _make_ui_button(layer, "BAG", Vector2(18, 118), Vector2(105, 48))
     bag_button.pressed.connect(toggle_inventory)
@@ -325,6 +321,16 @@ func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vect
     button.add_theme_font_size_override("font_size", 17)
     parent.add_child(button)
     return button
+
+func _place_bottom_right(button: Control, right_margin: float, bottom_margin: float) -> void:
+    button.anchor_left = 1.0
+    button.anchor_right = 1.0
+    button.anchor_top = 1.0
+    button.anchor_bottom = 1.0
+    button.offset_left = -(right_margin + button.size.x)
+    button.offset_right = -right_margin
+    button.offset_top = -(bottom_margin + button.size.y)
+    button.offset_bottom = -bottom_margin
 
 func _build_inventory_panel(layer: CanvasLayer) -> void:
     inventory_panel = PanelContainer.new()
@@ -418,6 +424,17 @@ func _upgrade_capacity() -> void:
 
 func _refresh_context_hint() -> void:
     if not context_label or not player:
+        return
+    var nearest_enemy: Node = null
+    var enemy_distance := 2.6
+    for enemy in infected:
+        if is_instance_valid(enemy):
+            var current_enemy_distance: float = player.global_position.distance_to(enemy.global_position)
+            if current_enemy_distance < enemy_distance:
+                enemy_distance = current_enemy_distance
+                nearest_enemy = enemy
+    if nearest_enemy:
+        context_label.text = "ATTACK — ударить заражённого"
         return
     var nearest_drop: Dictionary = {}
     var drop_distance := 2.2
@@ -521,7 +538,7 @@ func interact() -> void:
 
 func player_attack() -> void:
     var nearest: Node = null
-    var best := 2.2
+    var best := 2.6
     for enemy in infected:
         if is_instance_valid(enemy):
             var d: float = player.global_position.distance_to(enemy.global_position)
@@ -602,7 +619,8 @@ func _load_game() -> void:
     var saved_position = parsed.get("position", [])
     if saved_position is Array and saved_position.size() == 3:
         player.global_position = Vector3(float(saved_position[0]), float(saved_position[1]), float(saved_position[2]))
-    player.health = float(parsed.get("health", player.max_health))
+    player.max_stamina = maxf(50.0, float(parsed.get("max_stamina", player.max_stamina)))
+    player.health = clampf(float(parsed.get("health", player.max_health)), 0.0, player.max_health)
     player.stamina = clampf(float(parsed.get("stamina", player.max_stamina)), 0.0, player.max_stamina)
     var saved_inventory = parsed.get("inventory", {})
     if saved_inventory is Dictionary:
@@ -621,7 +639,6 @@ func _load_game() -> void:
     carry_capacity = maxf(10.0, float(parsed.get("carry_capacity", carry_capacity)))
     player.move_speed = maxf(1.0, float(parsed.get("move_speed", player.move_speed)))
     player.sprint_speed = maxf(player.move_speed, float(parsed.get("sprint_speed", player.sprint_speed)))
-    player.max_stamina = maxf(50.0, float(parsed.get("max_stamina", player.max_stamina)))
     var saved_ids = parsed.get("salvaged", [])
     if saved_ids is Array:
         for saved_id in saved_ids:

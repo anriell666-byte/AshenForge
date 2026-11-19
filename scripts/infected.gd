@@ -1,8 +1,8 @@
 extends CharacterBody3D
 
 var target
-var speed: float = 1.65
-var health: float = 3.0
+var speed: float = 1.5
+var health: float = 2.0
 var attack_timer: float = 0.0
 
 func _ready() -> void:
@@ -46,7 +46,7 @@ func _physics_process(delta: float) -> void:
     move_and_slide()
     if distance < 1.35 and attack_timer <= 0.0:
         attack_timer = 1.25
-        target.call("take_damage", 9.0)
+        target.call("take_damage", 7.0)
 
 func take_hit() -> void:
     health -= 1.0
