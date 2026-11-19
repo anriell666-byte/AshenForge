@@ -59,7 +59,7 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/android/afterfall-debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: afterfalldebug
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: afterfall-debug-key
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: afterfall-debug-store
         run: |
           mkdir -p build
           sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
