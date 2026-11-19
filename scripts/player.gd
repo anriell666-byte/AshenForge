@@ -1,12 +1,17 @@
 extends CharacterBody3D
 
-@export var move_speed: float = 4.2
+@export var move_speed: float = 3.6
 @export var sprint_speed: float = 6.2
 @export var max_health: float = 100.0
 @export var max_stamina: float = 100.0
 var health: float = 100.0
 var stamina: float = 100.0
 var touch_vector: Vector2 = Vector2.ZERO
+var touch_sprinting: bool = false
+var stamina_regen_delay: float = 0.0
+const STAMINA_DRAIN_RATE := 22.0
+const STAMINA_REGEN_RATE := 13.0
+const STAMINA_REGEN_DELAY := 0.7
 var main_game
 var attack_cooldown: float = 0.0
 var invulnerable: float = 0.0
@@ -61,12 +66,16 @@ func _physics_process(delta: float) -> void:
     var direction := Vector3(input_dir.x, 0.0, input_dir.y)
     if direction.length() > 1.0:
         direction = direction.normalized()
-    var sprinting := Input.is_action_pressed("sprint") and stamina > 1.0 and direction.length() > 0.1
+    var wants_sprint := Input.is_action_pressed("sprint") or touch_sprinting
+    var sprinting := wants_sprint and stamina > 0.0 and direction.length() > 0.1
     var speed := sprint_speed if sprinting else move_speed
     if sprinting:
-        stamina = maxf(0.0, stamina - 22.0 * delta)
+        stamina = maxf(0.0, stamina - STAMINA_DRAIN_RATE * delta)
+        stamina_regen_delay = STAMINA_REGEN_DELAY
     else:
-        stamina = minf(max_stamina, stamina + 13.0 * delta)
+        stamina_regen_delay = maxf(0.0, stamina_regen_delay - delta)
+        if stamina_regen_delay <= 0.0:
+            stamina = minf(max_stamina, stamina + STAMINA_REGEN_RATE * delta)
     velocity.x = direction.x * speed
     velocity.z = direction.z * speed
     if not is_on_floor():
@@ -79,6 +88,8 @@ func _physics_process(delta: float) -> void:
     # Keep the camera centered on the player without inheriting player rotation.
     if is_instance_valid(follow_camera):
         follow_camera.global_position = global_position + camera_offset
+    if is_instance_valid(main_game):
+        main_game.call("refresh_stamina_hud")
 
 func take_damage(amount: float) -> void:
     if invulnerable > 0.0:
