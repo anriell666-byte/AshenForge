@@ -424,7 +424,7 @@ func _refresh_context_hint() -> void:
     for drop in loot_drops:
         var node: Node3D = drop.get("node")
         if is_instance_valid(node):
-            var distance := player.global_position.distance_to(node.global_position)
+            var distance: float = player.global_position.distance_to(node.global_position)
             if distance < drop_distance:
                 drop_distance = distance
                 nearest_drop = drop
