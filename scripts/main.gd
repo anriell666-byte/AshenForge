@@ -4,6 +4,7 @@ const PlayerScript = preload("res://scripts/player.gd")
 const PropScript = preload("res://scripts/destructible.gd")
 const InfectedScript = preload("res://scripts/infected.gd")
 const JoystickScript = preload("res://scripts/touch_joystick.gd")
+const ExpansionScript = preload("res://scripts/expansion.gd")
 const SAVE_PATH := "user://afterfall_save.json"
 
 var player
@@ -29,6 +30,7 @@ var health_bar: ProgressBar
 var stamina_bar: ProgressBar
 var message_time: float = 0.0
 var camp_position := Vector3(-9, 0, 10)
+var expansion
 
 func _ready() -> void:
     _setup_input()
@@ -37,6 +39,10 @@ func _ready() -> void:
     _build_infected()
     _build_ui()
     _load_game()
+    expansion = Node.new()
+    expansion.set_script(ExpansionScript)
+    add_child(expansion)
+    expansion.call("setup", self)
     refresh_hud()
     show_message("GREYWOOD — Найди припасы и вернись к лагерю")
 
@@ -107,19 +113,24 @@ func _build_house(label: String, pos: Vector3, wall_color: Color) -> void:
     root.name = label
     root.position = pos
     add_child(root)
-    _box(root, "Walls", Vector3(0, 2, 0), Vector3(9, 4, 8), wall_color, true)
-    _box(root, "Roof", Vector3(0, 4.35, 0), Vector3(9.8, 0.7, 8.8), Color(0.25, 0.28, 0.27), true)
-    _box(root, "Door", Vector3(0, 1.05, 4.06), Vector3(1.3, 2.1, 0.12), Color(0.2, 0.16, 0.13), true)
-    _box(root, "Window left", Vector3(-3.1, 2.1, 4.08), Vector3(1.5, 1.2, 0.12), Color(0.19, 0.28, 0.3), true)
-    _box(root, "Window right", Vector3(3.1, 2.1, 4.08), Vector3(1.5, 1.2, 0.12), Color(0.19, 0.28, 0.3), true)
+    _box(root, "Back wall", Vector3(0, 2, -3.95), Vector3(9, 4, 0.25), wall_color, true)
+    _box(root, "Left wall", Vector3(-4.4, 2, 0), Vector3(0.25, 4, 8), wall_color, true)
+    _box(root, "Right wall", Vector3(4.4, 2, 0), Vector3(0.25, 4, 8), wall_color, true)
+    _box(root, "Front wall left", Vector3(-3.0, 2, 3.95), Vector3(3, 4, 0.25), wall_color, true)
+    _box(root, "Front wall right", Vector3(3.0, 2, 3.95), Vector3(3, 4, 0.25), wall_color, true)
+    _box(root, "Window left", Vector3(-3.1, 2.1, 4.08), Vector3(1.2, 1.1, 0.12), Color(0.19, 0.28, 0.3), false)
+    _box(root, "Window right", Vector3(3.1, 2.1, 4.08), Vector3(1.2, 1.1, 0.12), Color(0.19, 0.28, 0.3), false)
 
 func _build_shop(pos: Vector3) -> void:
     var root := Node3D.new()
     root.position = pos
     root.name = "Greywood Market"
     add_child(root)
-    _box(root, "Shop", Vector3(0, 2, 0), Vector3(10, 4, 9), Color(0.48, 0.47, 0.36), true)
-    _box(root, "Flat roof", Vector3(0, 4.2, 0), Vector3(10.5, 0.45, 9.5), Color(0.22, 0.27, 0.26), true)
+    _box(root, "Shop back wall", Vector3(0, 2, -4.4), Vector3(10, 4, 0.25), Color(0.48, 0.47, 0.36), true)
+    _box(root, "Shop left wall", Vector3(-4.9, 2, 0), Vector3(0.25, 4, 9), Color(0.48, 0.47, 0.36), true)
+    _box(root, "Shop right wall", Vector3(4.9, 2, 0), Vector3(0.25, 4, 9), Color(0.48, 0.47, 0.36), true)
+    _box(root, "Shop front left", Vector3(-3.6, 2, 4.4), Vector3(2.8, 4, 0.25), Color(0.48, 0.47, 0.36), true)
+    _box(root, "Shop front right", Vector3(3.6, 2, 4.4), Vector3(2.8, 4, 0.25), Color(0.48, 0.47, 0.36), true)
     _box(root, "Sign", Vector3(0, 3.5, 4.62), Vector3(5.2, 0.7, 0.18), Color(0.7, 0.57, 0.34), true)
     _make_prop("Shop shelf", "scrap", 4, 2, pos + Vector3(-2, 0.8, 6), Vector3(1.2, 1.6, 0.5), Color(0.34, 0.32, 0.26))
 
@@ -128,9 +139,11 @@ func _build_garage(pos: Vector3) -> void:
     root.position = pos
     root.name = "Garage"
     add_child(root)
-    _box(root, "Garage walls", Vector3(0, 1.8, 0), Vector3(10, 3.6, 8), Color(0.42, 0.43, 0.39), true)
-    _box(root, "Roof", Vector3(0, 3.9, 0), Vector3(10.5, 0.5, 8.5), Color(0.2, 0.24, 0.23), true)
-    _box(root, "Garage opening", Vector3(0, 1.3, 4.05), Vector3(4.6, 2.6, 0.12), Color(0.17, 0.19, 0.18), true)
+    _box(root, "Garage back wall", Vector3(0, 1.8, -3.9), Vector3(10, 3.6, 0.25), Color(0.42, 0.43, 0.39), true)
+    _box(root, "Garage left wall", Vector3(-4.9, 1.8, 0), Vector3(0.25, 3.6, 8), Color(0.42, 0.43, 0.39), true)
+    _box(root, "Garage right wall", Vector3(4.9, 1.8, 0), Vector3(0.25, 3.6, 8), Color(0.42, 0.43, 0.39), true)
+    _box(root, "Garage front left", Vector3(-3.8, 1.8, 3.9), Vector3(2.4, 3.6, 0.25), Color(0.42, 0.43, 0.39), true)
+    _box(root, "Garage front right", Vector3(3.8, 1.8, 3.9), Vector3(2.4, 3.6, 0.25), Color(0.42, 0.43, 0.39), true)
     _make_prop("Tool cabinet", "scrap", 6, 3, pos + Vector3(6, 0.8, 1), Vector3(1.0, 1.6, 0.7), Color(0.34, 0.38, 0.35))
 
 func _build_gas_station(pos: Vector3) -> void:
@@ -514,6 +527,8 @@ func _on_joystick_changed(value: Vector2) -> void:
 func interact() -> void:
     if not player:
         return
+    if expansion and expansion.call("try_interact"):
+        return
     if _collect_nearest_drop():
         return
     if player.global_position.distance_to(camp_position) < 5.0:
@@ -545,6 +560,8 @@ func player_attack() -> void:
             if d < best:
                 best = d
                 nearest = enemy
+    if expansion and expansion.call("try_attack"):
+        return
     if nearest:
         nearest.call("take_hit")
         show_message("Удар!")
