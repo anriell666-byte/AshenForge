@@ -23,11 +23,14 @@ func _hide_old_walls(root: Node3D) -> void:
     for child in root.get_children():
         var low := child.name.to_lower()
         if low.contains("wall") or low.contains("front"):
-            child.visible = false
             if child is StaticBody3D:
                 for part in child.get_children():
                     if part is CollisionShape3D:
                         part.disabled = true
+                    elif part is MeshInstance3D:
+                        part.visible = false
+            elif child is MeshInstance3D:
+                child.visible = false
 
 func _rebuild_house(label: String, tint: Color) -> void:
     var root := _find_building(label)
