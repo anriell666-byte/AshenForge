@@ -42,14 +42,6 @@ jobs:
           export/android/android_sdk_path = "/usr/local/lib/android/sdk"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
-      - name: Restore persistent Android signing key
-        env:
-          AFTERFALL_KEYSTORE_BASE64: ${{ secrets.AFTERFALL_KEYSTORE_BASE64 }}
-        run: |
-          test -n "$AFTERFALL_KEYSTORE_BASE64" || { echo "Add AFTERFALL_KEYSTORE_BASE64 in GitHub Actions secrets."; exit 1; }
-          mkdir -p android
-          printf '%s' "$AFTERFALL_KEYSTORE_BASE64" | base64 --decode > android/afterfall-debug.keystore
-          chmod 600 android/afterfall-debug.keystore
       - name: Validate project
         shell: bash
         run: |
@@ -58,6 +50,14 @@ jobs:
           "$GODOT" --headless --editor --path . --import 2>&1 | tee godot-import.log
           "$GODOT" --headless --path . --quit 2>&1 | tee godot-runtime-check.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|ERROR: Failed to load" godot-import.log godot-runtime-check.log; then exit 1; fi
+      - name: Restore persistent Android signing key
+        env:
+          AFTERFALL_KEYSTORE_BASE64: ${{ secrets.AFTERFALL_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$AFTERFALL_KEYSTORE_BASE64" || { echo "Add AFTERFALL_KEYSTORE_BASE64 in GitHub Actions secrets."; exit 1; }
+          mkdir -p android
+          printf '%s' "$AFTERFALL_KEYSTORE_BASE64" | base64 --decode > android/afterfall-debug.keystore
+          chmod 600 android/afterfall-debug.keystore
       - name: Export APK
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
