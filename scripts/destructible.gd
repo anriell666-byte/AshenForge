@@ -21,7 +21,7 @@ func damage_object() -> void:
         main_game.call("show_message", "%s: %d/%d" % [object_name, maxi(0, int(durability)), int(max_durability)])
     if durability <= 0.0:
         if main_game:
-            main_game.call("add_resource", material_id, yield_amount)
+            main_game.call("spawn_loot", material_id, yield_amount, global_position)
             main_game.call("mark_salvaged", self)
             main_game.call("show_message", "+%d %s" % [yield_amount, material_id.capitalize()])
         queue_free()
