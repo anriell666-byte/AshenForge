@@ -74,8 +74,9 @@ func _make_animal(label: String, pos: Vector3, tint: Color, speed: float, hp: in
     animals.append(animal)
     animal_data[animal.get_instance_id()] = {"hp":hp,"meat":meat,"speed":speed,"timer":1.0,"direction":Vector3.RIGHT}
 func _add_controls() -> void:
-    var layer := game.get_child( game.get_child_count()-1 ) as CanvasLayer
-    if layer == null: return
+    var layers := game.find_children("*", "CanvasLayer", true, false)
+    if layers.is_empty(): return
+    var layer := layers[0] as CanvasLayer
     var left := game._make_ui_button(layer,"⟲",Vector2.ZERO,Vector2(58,52))
     game._place_bottom_right(left,300,24)
     left.pressed.connect(func(): game.player.rotate_camera(-PI/4.0))
@@ -145,6 +146,8 @@ func _toggle_stealth(active: bool) -> void:
     stealth = active
     game.player.is_sneaking = active
     game.show_message("Тихий шаг включён" if active else "Обычная стойка")
+func try_interact() -> bool:
+    return false
 func try_attack() -> bool:
     var closest: Node3D = null
     var best := 2.8
