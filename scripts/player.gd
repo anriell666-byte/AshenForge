@@ -89,7 +89,7 @@ func _physics_process(delta: float) -> void:
     else:
         velocity.y = -0.2
     if direction.length() > 0.1:
-        rotation.y = atan2(-direction.x, -direction.z)
+        rotation.y = atan2(-rotated.x, -rotated.y)
     move_and_slide()
     # Keep the camera centered on the player without inheriting player rotation.
     if is_instance_valid(follow_camera):
