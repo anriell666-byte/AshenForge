@@ -31,7 +31,8 @@ func _physics_process(delta: float) -> void:
         return
     var offset: Vector3 = target.global_position - global_position
     var distance := offset.length()
-    if distance < 12.0 and distance > 1.15:
+    var detection_range := 5.5 if target.get("is_sneaking") else 12.0
+    if distance < detection_range and distance > 1.15:
         var direction := Vector3(offset.x, 0.0, offset.z).normalized()
         velocity.x = direction.x * speed
         velocity.z = direction.z * speed
@@ -48,8 +49,8 @@ func _physics_process(delta: float) -> void:
         attack_timer = 1.25
         target.call("take_damage", 7.0)
 
-func take_hit() -> void:
-    health -= 1.0
+func take_hit(damage: float = 1.0) -> void:
+    health -= damage
     if health <= 0.0:
         if is_instance_valid(target):
             var game = target.get("main_game")
