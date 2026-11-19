@@ -152,16 +152,16 @@ func _toggle_stealth(active: bool) -> void:
     game.show_message("Тихий шаг включён" if active else "Обычная стойка")
 func try_interact() -> bool:
     return false
-func try_attack() -> bool:
+func try_attack(damage: float = 1.0) -> bool:
     var closest: Node3D = null
-    var best := 2.8
+    var best := 7.0 if game.player.equipped_weapon == "bow" else 2.8
     for a in animals:
         if is_instance_valid(a):
             var d: float = game.player.global_position.distance_to(a.global_position)
             if d < best: best=d; closest=a
     if closest == null: return false
     var data: Dictionary = animal_data.get(closest.get_instance_id(),{})
-    data["hp"] = int(data.get("hp",1))-1
+    data["hp"] = int(data.get("hp",1))-maxi(1,roundi(damage))
     if int(data["hp"]) <= 0:
         game.spawn_loot("food",int(data.get("meat",2)),closest.global_position)
         game._gain_xp(12)
