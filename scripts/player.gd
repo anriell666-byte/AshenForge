@@ -90,6 +90,8 @@ func _physics_process(delta: float) -> void:
         follow_camera.global_position = global_position + camera_offset
     if is_instance_valid(main_game):
         main_game.call("refresh_stamina_hud")
+        if Engine.get_physics_frames() % 12 == 0:
+            main_game.call("_refresh_inventory_ui")
 
 func take_damage(amount: float) -> void:
     if invulnerable > 0.0:
