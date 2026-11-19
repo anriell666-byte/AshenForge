@@ -31,6 +31,7 @@ var stamina_bar: ProgressBar
 var message_time: float = 0.0
 var camp_position := Vector3(-9, 0, 10)
 var expansion
+var saved_expansion_state: Dictionary = {}
 
 func _ready() -> void:
     _setup_input()
@@ -616,7 +617,7 @@ func save_game() -> void:
         var node: Node3D = drop.get("node")
         if is_instance_valid(node):
             saved_loot.append({"resource": str(drop.get("resource", "scrap")), "amount": int(drop.get("amount", 1)), "position": [node.global_position.x, node.global_position.y, node.global_position.z]})
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina}
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -656,6 +657,11 @@ func _load_game() -> void:
     carry_capacity = maxf(10.0, float(parsed.get("carry_capacity", carry_capacity)))
     player.move_speed = maxf(1.0, float(parsed.get("move_speed", player.move_speed)))
     player.sprint_speed = maxf(player.move_speed, float(parsed.get("sprint_speed", player.sprint_speed)))
+    player.equipped_weapon = str(parsed.get("equipped_weapon", ""))
+    player.equipped_tool = str(parsed.get("equipped_tool", ""))
+    player.camera_yaw = float(parsed.get("camera_yaw", 0.0))
+    var crafted_state = parsed.get("crafted", {})
+    if crafted_state is Dictionary: saved_expansion_state = crafted_state
     var saved_ids = parsed.get("salvaged", [])
     if saved_ids is Array:
         for saved_id in saved_ids:
