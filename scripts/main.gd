@@ -370,7 +370,7 @@ func _refresh_inventory_ui() -> void:
     for key in keys:
         lines.append("%s: %d" % [labels[key], int(inventory.get(key, 0))])
     lines.append("Вес: %.1f / %.1f кг" % [_inventory_weight(), carry_capacity])
-    lines.append("Инструмент: ломик")
+    lines.append("Инструменты: базовое снаряжение")
     inventory_label.text = "\n".join(lines)
     upgrade_info.text = "Навыки становятся доступны за опыт. Каждые 100 XP — новый уровень."
     for button in upgrade_buttons:
