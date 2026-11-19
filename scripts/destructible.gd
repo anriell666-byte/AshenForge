@@ -16,7 +16,11 @@ func setup(label: String, resource: String, amount: int, hits: float, game) -> v
     main_game = game
 
 func damage_object() -> void:
-    durability -= 1.0
+    var damage := 1.0
+    if is_instance_valid(main_game) and is_instance_valid(main_game.player):
+        if main_game.player.equipped_tool == "hatchet": damage = 2.5
+        elif main_game.player.equipped_tool == "crowbar": damage = 3.0
+    durability -= damage
     if main_game:
         main_game.call("show_message", "%s: %d/%d" % [object_name, maxi(0, int(durability)), int(max_durability)])
     if durability <= 0.0:
