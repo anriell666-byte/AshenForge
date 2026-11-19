@@ -470,7 +470,7 @@ func _collect_nearest_drop() -> bool:
     for i in range(loot_drops.size()):
         var node: Node3D = loot_drops[i].node
         if is_instance_valid(node):
-            var distance := player.global_position.distance_to(node.global_position)
+            var distance: float = player.global_position.distance_to(node.global_position)
             if distance < best:
                 best = distance
                 nearest_index = i
