@@ -43,6 +43,7 @@ func _ready() -> void:
     add_child(visual_upgrade)
     visual_upgrade.call("setup", self, player)
     _build_infected()
+    visual_upgrade.call("dress_infected", infected)
     _build_ui()
     _load_game()
     expansion = Node.new()
