@@ -563,7 +563,7 @@ func player_attack() -> void:
     if expansion and expansion.call("try_attack"):
         return
     if nearest:
-        nearest.call("take_hit")
+        nearest.call("take_hit", 2.0 if player.equipped_weapon == "spear" else 1.0)
         show_message("Удар!")
     else:
         show_message("Никого рядом.")
