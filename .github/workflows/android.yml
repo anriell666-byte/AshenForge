@@ -91,7 +91,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
  || { echo "Missing 64-bit ARM native library"; exit 1; }
-          echo "Both ARMv7 and ARM64 native libraries are present."
+          echo "$APK_ENTRIES" | grep -q '^lib/x86/libgodot_android.so      - uses: actions/upload-artifact@v4
+        with:
+          name: afterfall-android-debug
+          path: build/afterfall-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+ || { echo "Missing 32-bit x86 native library"; exit 1; }
+          echo "$APK_ENTRIES" | grep -q '^lib/x86_64/libgodot_android.so      - uses: actions/upload-artifact@v4
+        with:
+          name: afterfall-android-debug
+          path: build/afterfall-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+ || { echo "Missing 64-bit x86 native library"; exit 1; }
+          echo "All four Android CPU architectures are present."
       - uses: actions/upload-artifact@v4
         with:
           name: afterfall-android-debug
