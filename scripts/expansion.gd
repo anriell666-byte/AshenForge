@@ -79,20 +79,20 @@ func _make_animal(label: String, pos: Vector3, tint: Color, speed: float, hp: in
     animals.append(animal)
     animal_data[animal.get_instance_id()] = {"hp":hp,"meat":meat,"speed":speed,"timer":1.0,"direction":Vector3.RIGHT}
 func _add_controls() -> void:
-    var layers := game.find_children("*", "CanvasLayer", true, false)
+    var layers: Array[Node] = game.find_children("*", "CanvasLayer", true, false)
     if layers.is_empty(): return
     var layer := layers[0] as CanvasLayer
-    var left := game._make_ui_button(layer,"⟲",Vector2.ZERO,Vector2(58,52))
+    var left: Button = game._make_ui_button(layer,"⟲",Vector2.ZERO,Vector2(58,52))
     game._place_bottom_right(left,300,24)
     left.pressed.connect(func(): game.player.rotate_camera(-PI/4.0))
-    var right := game._make_ui_button(layer,"⟳",Vector2.ZERO,Vector2(58,52))
+    var right: Button = game._make_ui_button(layer,"⟳",Vector2.ZERO,Vector2(58,52))
     game._place_bottom_right(right,364,24)
     right.pressed.connect(func(): game.player.rotate_camera(PI/4.0))
-    var sneak := game._make_ui_button(layer,"SNEAK",Vector2.ZERO,Vector2(92,48))
+    var sneak: Button = game._make_ui_button(layer,"SNEAK",Vector2.ZERO,Vector2(92,48))
     game._place_bottom_right(sneak,300,88)
     sneak.toggle_mode = true
     sneak.toggled.connect(_toggle_stealth)
-    var craft := game._make_ui_button(layer,"CRAFT",Vector2(135,118),Vector2(105,48))
+    var craft: Button = game._make_ui_button(layer,"CRAFT",Vector2(135,118),Vector2(105,48))
     craft.pressed.connect(_toggle_craft)
     craft_panel = PanelContainer.new()
     craft_panel.position = Vector2(250,150)
@@ -111,11 +111,11 @@ func _add_controls() -> void:
     _recipe_button(col,"Монтировка","crowbar",{"wood":1,"scrap":4}, "Взлом баррикад и дверей")
     _recipe_button(col,"Самодельное копьё","spear",{"wood":4,"scrap":1}, "Урон в бою увеличен")
     _recipe_button(col,"Лук охотника","bow",{"wood":5,"cloth":2}, "Дальняя охота (прототип)")
-    var close := game._make_ui_button(col,"ЗАКРЫТЬ",Vector2.ZERO,Vector2.ZERO)
+    var close: Button = game._make_ui_button(col,"ЗАКРЫТЬ",Vector2.ZERO,Vector2.ZERO)
     close.pressed.connect(_toggle_craft)
     _refresh_status()
 func _recipe_button(parent: Node, label: String, id: String, cost: Dictionary, note: String) -> void:
-    var b := game._make_ui_button(parent,label+"  ["+_cost_text(cost)+"]",Vector2.ZERO,Vector2.ZERO)
+    var b: Button = game._make_ui_button(parent,label+"  ["+_cost_text(cost)+"]",Vector2.ZERO,Vector2.ZERO)
     b.pressed.connect(func(): _craft(id,cost,note))
 func _cost_text(cost: Dictionary) -> String:
     var out: Array[String] = []
