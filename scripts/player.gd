@@ -7,6 +7,7 @@ extends CharacterBody3D
 var health: float = 100.0
 var stamina: float = 100.0
 var touch_vector: Vector2 = Vector2.ZERO
+var camera_touch_vector: Vector2 = Vector2.ZERO
 var touch_sprinting: bool = false
 var stamina_regen_delay: float = 0.0
 const STAMINA_DRAIN_RATE := 22.0
@@ -92,6 +93,7 @@ func _physics_process(delta: float) -> void:
         stamina_regen_delay = maxf(0.0, stamina_regen_delay - delta)
         if stamina_regen_delay <= 0.0:
             stamina = minf(max_stamina, stamina + STAMINA_REGEN_RATE * delta)
+    camera_yaw += camera_touch_vector.x * 1.85 * delta
     var rotated := Vector2(direction.x, direction.z).rotated(camera_yaw)
     velocity.x = rotated.x * speed
     velocity.z = rotated.y * speed

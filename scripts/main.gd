@@ -10,6 +10,7 @@ const SAVE_PATH := "user://afterfall_save.json"
 
 var player
 var joystick: Control
+var camera_joystick: Control
 var props: Array = []
 var loot_drops: Array[Dictionary] = []
 var infected: Array = []
@@ -204,19 +205,40 @@ func _build_camp() -> void:
 
 func _scatter_trees() -> void:
     var positions := [Vector3(-27,0,-25),Vector3(-27,0,-10),Vector3(-28,0,8),Vector3(-27,0,25),Vector3(28,0,-26),Vector3(28,0,-8),Vector3(28,0,10),Vector3(27,0,27),Vector3(-8,0,-28),Vector3(9,0,-29)]
-    for p in positions:
-        _box(self, "Tree trunk", p + Vector3(0, 1.1, 0), Vector3(0.7, 2.2, 0.7), Color(0.28, 0.2, 0.14), true)
-        var crown := MeshInstance3D.new()
-        var sphere := SphereMesh.new()
-        sphere.radius = 1.8
-        sphere.height = 3.4
-        crown.mesh = sphere
-        crown.position = p + Vector3(0, 3.2, 0)
-        var mat := StandardMaterial3D.new()
-        mat.albedo_color = Color(0.2, 0.31, 0.23)
-        mat.roughness = 1.0
-        crown.material_override = mat
-        add_child(crown)
+    var foliage := [Color(0.16,0.28,0.19),Color(0.20,0.33,0.22),Color(0.25,0.35,0.22),Color(0.13,0.24,0.18)]
+    for tree_index in range(positions.size()):
+        var p: Vector3 = positions[tree_index]
+        _box(self, "Tree trunk", p + Vector3(0, 1.1, 0), Vector3(0.7, 2.2, 0.7), Color(0.25, 0.18, 0.13), true)
+        for branch_index in range(3):
+            var branch := MeshInstance3D.new()
+            var branch_mesh := CylinderMesh.new()
+            branch_mesh.top_radius = 0.08
+            branch_mesh.bottom_radius = 0.16
+            branch_mesh.height = 1.45
+            branch.mesh = branch_mesh
+            branch.position = p + Vector3((float(branch_index)-1.0)*0.48, 2.05 + float(branch_index%2)*0.35, 0.0)
+            branch.rotation_degrees.z = -28.0 + float(branch_index)*24.0
+            var branch_mat := StandardMaterial3D.new()
+            branch_mat.albedo_color = Color(0.24, 0.17, 0.12)
+            branch_mat.roughness = 1.0
+            branch.material_override = branch_mat
+            add_child(branch)
+        for crown_index in range(6):
+            var crown := MeshInstance3D.new()
+            var sphere := SphereMesh.new()
+            sphere.radius = 1.25 if crown_index == 0 else 1.0
+            sphere.height = 2.35 if crown_index == 0 else 1.9
+            crown.mesh = sphere
+            var angle := float(crown_index) * TAU / 5.0
+            crown.position = p + Vector3(cos(angle)*0.72, 3.05 + (0.28 if crown_index%2 == 0 else -0.08), sin(angle)*0.72)
+            crown.scale = Vector3(1.0 + float((tree_index+crown_index)%3)*0.08, 1.0, 1.0)
+            var mat := StandardMaterial3D.new()
+            mat.albedo_color = foliage[(tree_index+crown_index)%foliage.size()]
+            mat.roughness = 1.0
+            crown.material_override = mat
+            add_child(crown)
+        for scar in range(3):
+            _box(self, "Bark scar", p + Vector3(0.0, 0.55 + float(scar)*0.48, -0.356), Vector3(0.12, 0.055, 0.018), Color(0.39, 0.28, 0.19), false)
 
 func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color: Color, solid: bool) -> Node3D:
     if solid:
@@ -329,28 +351,54 @@ func _build_ui() -> void:
     layer.add_child(context_label)
     joystick = Control.new()
     joystick.set_script(JoystickScript)
-    joystick.position = Vector2(28, 500)
-    joystick.size = Vector2(180, 180)
+    joystick.size = Vector2(176, 176)
+    joystick.anchor_left = 0.0
+    joystick.anchor_right = 0.0
     joystick.anchor_top = 1.0
     joystick.anchor_bottom = 1.0
-    joystick.offset_top = -205
-    joystick.offset_bottom = -25
+    joystick.offset_left = 22.0
+    joystick.offset_right = 198.0
+    joystick.offset_top = -194.0
+    joystick.offset_bottom = -18.0
+    joystick.active_radius = 60.0
+    joystick.display_label = "MOVE"
     layer.add_child(joystick)
     joystick.vector_changed.connect(_on_joystick_changed)
-    var attack_button := _make_ui_button(layer, "ATTACK", Vector2.ZERO, Vector2(120, 64))
-    _place_bottom_right(attack_button, 24.0, 24.0)
+
+    camera_joystick = Control.new()
+    camera_joystick.set_script(JoystickScript)
+    camera_joystick.size = Vector2(144, 144)
+    camera_joystick.anchor_left = 1.0
+    camera_joystick.anchor_right = 1.0
+    camera_joystick.anchor_top = 1.0
+    camera_joystick.anchor_bottom = 1.0
+    camera_joystick.offset_left = -166.0
+    camera_joystick.offset_right = -22.0
+    camera_joystick.offset_top = -326.0
+    camera_joystick.offset_bottom = -182.0
+    camera_joystick.active_radius = 48.0
+    camera_joystick.display_label = "LOOK"
+    layer.add_child(camera_joystick)
+    camera_joystick.vector_changed.connect(_on_camera_joystick_changed)
+
+    var attack_button := _make_ui_button(layer, "⚔\nАТАКА", Vector2.ZERO, Vector2(84, 76))
+    _place_bottom_right(attack_button, 16.0, 18.0)
     attack_button.pressed.connect(func(): player.call("perform_attack"))
-    var action_button := _make_ui_button(layer, "ACTION", Vector2.ZERO, Vector2(120, 64))
-    _place_bottom_right(action_button, 24.0, 100.0)
+    var action_button := _make_ui_button(layer, "E\nСБОР", Vector2.ZERO, Vector2(84, 76))
+    _place_bottom_right(action_button, 108.0, 18.0)
     action_button.pressed.connect(interact)
-    var run_button := _make_ui_button(layer, "RUN", Vector2.ZERO, Vector2(120, 64))
-    _place_bottom_right(run_button, 160.0, 24.0)
+    var save_button := _make_ui_button(layer, "▣\nСЕЙВ", Vector2.ZERO, Vector2(72, 76))
+    _place_bottom_right(save_button, 200.0, 18.0)
+    save_button.pressed.connect(save_game)
+    var sneak_button := _make_ui_button(layer, "C\nТИШЕ", Vector2.ZERO, Vector2(72, 62))
+    _place_bottom_right(sneak_button, 16.0, 102.0)
+    sneak_button.pressed.connect(func(): player.set("is_sneaking", not bool(player.get("is_sneaking"))))
+    var run_button := _make_ui_button(layer, "⇧\nБЕГ", Vector2.ZERO, Vector2(72, 62))
+    _place_bottom_right(run_button, 96.0, 102.0)
     run_button.button_down.connect(_set_touch_sprint.bind(true))
     run_button.button_up.connect(_set_touch_sprint.bind(false))
-    var save_button := _make_ui_button(layer, "SAVE", Vector2.ZERO, Vector2(100, 48))
-    _place_bottom_right(save_button, 160.0, 100.0)
-    save_button.pressed.connect(save_game)
-    var bag_button := _make_ui_button(layer, "BAG", Vector2(18, 118), Vector2(105, 48))
+    var bag_button := _make_ui_button(layer, "▤\nРЮКЗАК", Vector2.ZERO, Vector2(76, 62))
+    _place_bottom_right(bag_button, 176.0, 102.0)
     bag_button.pressed.connect(toggle_inventory)
     _build_inventory_panel(layer)
     _build_chest_panel(layer)
@@ -360,7 +408,37 @@ func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vect
     button.text = label
     button.position = pos
     button.size = dimensions
-    button.add_theme_font_size_override("font_size", 17)
+    button.focus_mode = Control.FOCUS_NONE
+    button.add_theme_font_size_override("font_size", 15 if dimensions.x > 0.0 else 16)
+    button.add_theme_color_override("font_color", Color(0.91, 0.94, 0.87))
+    button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.94))
+    button.add_theme_color_override("font_pressed_color", Color(1.0, 0.86, 0.58))
+    button.add_theme_color_override("font_disabled_color", Color(0.55, 0.58, 0.53))
+    var normal := StyleBoxFlat.new()
+    normal.bg_color = Color(0.055, 0.075, 0.07, 0.88)
+    normal.border_color = Color(0.48, 0.57, 0.48, 0.9)
+    normal.set_border_width_all(2)
+    normal.set_corner_radius_all(14)
+    normal.shadow_color = Color(0.0, 0.0, 0.0, 0.38)
+    normal.shadow_size = 5
+    normal.content_margin_left = 5.0
+    normal.content_margin_right = 5.0
+    normal.content_margin_top = 4.0
+    normal.content_margin_bottom = 4.0
+    var hover := normal.duplicate() as StyleBoxFlat
+    hover.bg_color = Color(0.13, 0.18, 0.15, 0.96)
+    hover.border_color = Color(0.77, 0.79, 0.59, 1.0)
+    var pressed := normal.duplicate() as StyleBoxFlat
+    pressed.bg_color = Color(0.34, 0.27, 0.16, 0.98)
+    pressed.border_color = Color(0.92, 0.71, 0.39, 1.0)
+    var disabled := normal.duplicate() as StyleBoxFlat
+    disabled.bg_color = Color(0.07, 0.08, 0.075, 0.55)
+    disabled.border_color = Color(0.28, 0.31, 0.28, 0.6)
+    button.add_theme_stylebox_override("normal", normal)
+    button.add_theme_stylebox_override("hover", hover)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_stylebox_override("focus", normal)
+    button.add_theme_stylebox_override("disabled", disabled)
     parent.add_child(button)
     return button
 
@@ -662,6 +740,10 @@ func _set_touch_sprint(active: bool) -> void:
 func _on_joystick_changed(value: Vector2) -> void:
     if player:
         player.touch_vector = value
+
+func _on_camera_joystick_changed(value: Vector2) -> void:
+    if player:
+        player.camera_touch_vector = value
 
 func interact() -> void:
     if not player:

@@ -6,6 +6,7 @@ func setup(owner, player_node) -> void:
     game = owner
     survivor = player_node
     _repair_building_shells()
+    _add_building_detail_pass()
     _dress_greywood()
     _add_world_art_pass()
     _replace_survivor_placeholder()
@@ -100,6 +101,58 @@ func _rebuild_garage() -> void:
     _box(root,"Workbench top",Vector3(-2.5,1.0,-2.2),Vector3(2.4,0.14,0.8),Color(0.28,0.21,0.14),true)
     _box(root,"Workbench legs",Vector3(-2.5,0.48,-2.2),Vector3(2.2,0.9,0.12),Color(0.18,0.2,0.19),true)
     _box(root,"Tool board",Vector3(-2.5,2.1,-3.65),Vector3(2.7,1.25,0.12),Color(0.25,0.29,0.27),true)
+
+func _add_building_detail_pass() -> void:
+    var trim := Color(0.22, 0.16, 0.12)
+    var roof := Color(0.20, 0.23, 0.21)
+    for building_name in ["House A", "House B", "House C"]:
+        var root := _find_building(building_name)
+        if root == null:
+            continue
+        var tint := Color(0.54,0.43,0.34)
+        if building_name == "House B":
+            tint = Color(0.43,0.49,0.46)
+        elif building_name == "House C":
+            tint = Color(0.55,0.5,0.39)
+        _rotated_box(root, "Roof left slope", Vector3(-2.25,4.15,0), Vector3(5.1,0.22,8.5), roof.darkened(0.08), Vector3(0,0,-24.0))
+        _rotated_box(root, "Roof right slope", Vector3(2.25,4.15,0), Vector3(5.1,0.22,8.5), roof, Vector3(0,0,24.0))
+        _box(root, "Roof ridge", Vector3(0,4.9,0), Vector3(0.22,0.22,8.7), trim, false)
+        for z in [-2.7,0.0,2.7]:
+            _box(root, "Roof seam", Vector3(0,4.82,z), Vector3(8.2,0.06,0.06), trim, false)
+        _box(root, "Front door", Vector3(0,1.05,4.09), Vector3(1.18,2.1,0.12), Color(0.25,0.18,0.13), false)
+        _box(root, "Door handle", Vector3(0.43,1.1,4.17), Vector3(0.07,0.16,0.05), Color(0.62,0.52,0.31), false)
+        for x in [-2.8,2.8]:
+            _box(root, "Window crossbar", Vector3(x,2.0,4.16), Vector3(1.0,0.07,0.06), trim, false)
+            _box(root, "Window vertical bar", Vector3(x,2.0,4.16), Vector3(0.07,0.98,0.06), trim, false)
+        _box(root, "Boarded window plank", Vector3(-2.8,1.82,4.19), Vector3(0.95,0.10,0.07), Color(0.32,0.22,0.15), false)
+        _box(root, "Foundation front", Vector3(0,0.12,3.88), Vector3(8.6,0.22,0.36), Color(0.25,0.24,0.21), false)
+        for x in [-3.8,3.8]:
+            _box(root, "Wall weathering", Vector3(x,1.55,4.10), Vector3(0.22,0.48,0.025), tint.darkened(0.22), false)
+    var shop := _find_building("Greywood Market")
+    if shop:
+        _box(shop, "Market sign backing", Vector3(0,3.65,4.62), Vector3(5.7,0.16,0.22), Color(0.22,0.18,0.13), false)
+        _box(shop, "Market sign stripe", Vector3(0,3.62,4.76), Vector3(4.8,0.08,0.04), Color(0.72,0.52,0.28), false)
+        for x in [-4.3,4.3]:
+            _box(shop, "Shop corner trim", Vector3(x,2.0,4.5), Vector3(0.16,3.8,0.16), Color(0.25,0.20,0.15), false)
+    var garage := _find_building("Garage")
+    if garage:
+        _box(garage, "Garage roof fascia", Vector3(0,3.72,-3.9), Vector3(10.2,0.24,0.3), Color(0.24,0.25,0.22), false)
+        for x in [-3.1,-1.55,0.0,1.55,3.1]:
+            _box(garage, "Garage shutter rib", Vector3(x,1.0,4.02), Vector3(0.06,1.65,0.05), Color(0.26,0.28,0.25), false)
+
+func _rotated_box(parent: Node3D, label: String, pos: Vector3, dimensions: Vector3, color: Color, angles: Vector3) -> void:
+    var node := MeshInstance3D.new()
+    node.name = label
+    var mesh := BoxMesh.new()
+    mesh.size = dimensions
+    node.mesh = mesh
+    node.position = pos
+    node.rotation_degrees = angles
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.roughness = 0.96
+    node.material_override = mat
+    parent.add_child(node)
 
 func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color: Color, solid: bool) -> void:
     game.call("_box",parent,label,pos,dimensions,color,solid)
@@ -363,6 +416,15 @@ func _infected_model(enemy: Node3D) -> void:
         _part(leg,"Worn trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.29,0.68,0.3),Color(0.19,0.21,0.19))
         _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.07),Vector3(0.25,0.18,0.36),Color(0.10,0.11,0.10))
         limbs.append(leg)
-    _part(model,"Eye glint",SphereMesh.new(),Vector3(0.12,1.82,-0.275),Vector3(0.045,0.045,0.025),Color(0.78,0.58,0.32))
+    _part(model,"Left infected eye",SphereMesh.new(),Vector3(-0.13,1.83,-0.275),Vector3(0.052,0.052,0.028),Color(0.68,0.43,0.25))
+    _part(model,"Right infected eye",SphereMesh.new(),Vector3(0.13,1.83,-0.275),Vector3(0.052,0.052,0.028),Color(0.88,0.65,0.31))
+    _part(model,"Sunken mouth",BoxMesh.new(),Vector3(0.0,1.61,-0.285),Vector3(0.22,0.075,0.035),Color(0.10,0.12,0.10))
+    _part(model,"Broken tooth",BoxMesh.new(),Vector3(-0.045,1.60,-0.31),Vector3(0.045,0.045,0.025),Color(0.72,0.69,0.53))
+    _part(model,"Cheek wound",BoxMesh.new(),Vector3(-0.22,1.72,-0.25),Vector3(0.13,0.055,0.035),Color(0.34,0.18,0.14))
+    _part(model,"Exposed ribs",BoxMesh.new(),Vector3(0.12,1.04,-0.245),Vector3(0.24,0.28,0.045),Color(0.42,0.39,0.29))
+    _part(model,"Torn shoulder patch",BoxMesh.new(),Vector3(0.34,1.39,-0.18),Vector3(0.24,0.12,0.06),Color(0.39,0.24,0.17))
+    _part(model,"Belt buckle",BoxMesh.new(),Vector3(0.0,0.68,-0.245),Vector3(0.13,0.11,0.04),Color(0.42,0.38,0.27))
+    _part(model,"Left hand claw",BoxMesh.new(),Vector3(-0.44,0.66,-0.10),Vector3(0.12,0.16,0.12),Color(0.26,0.31,0.23))
+    _part(model,"Right hand claw",BoxMesh.new(),Vector3(0.44,0.66,-0.10),Vector3(0.12,0.16,0.12),Color(0.26,0.31,0.23))
     enemy.animation_model = model
     enemy.animation_parts = limbs
