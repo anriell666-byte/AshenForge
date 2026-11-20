@@ -459,10 +459,11 @@ func _refresh_chest_ui() -> void:
     if not chest_panel:
         return
     var total := 0
+    var labels := {"wood":"Дерево", "scrap":"Металлолом", "plastic":"Пластик", "cloth":"Ткань", "food":"Еда", "medicine":"Медикаменты"}
     for key in chest_inventory:
         total += int(chest_inventory[key])
         if chest_value_labels.has(key):
-            chest_value_labels[key].text = "%s   Рюкзак %d  |  Сундук %d" % [str(key).capitalize(), int(inventory.get(key, 0)), int(chest_inventory.get(key, 0))]
+            chest_value_labels[key].text = "%s   Рюкзак %d  |  Сундук %d" % [str(labels.get(key, key)), int(inventory.get(key, 0)), int(chest_inventory.get(key, 0))]
     if chest_label:
         chest_label.text = "Хранилище: %d единиц. Не занимает вес рюкзака." % total
 
