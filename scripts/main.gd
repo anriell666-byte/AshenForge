@@ -172,7 +172,7 @@ func _build_gas_station(pos: Vector3) -> void:
 
 func _build_camp() -> void:
     _box(self, "Camp tarp", camp_position + Vector3(0, 2.4, 0), Vector3(5.5, 0.25, 4.5), Color(0.32, 0.38, 0.3), false)
-    _box(self, "Camp bed", camp_position + Vector3(-1.4, 0.35, 0), Vector3(1.1, 0.35, 2.2), Color(0.37, 0.28, 0.2), false)
+    _box(self, "Camp bed", camp_position + Vector3(-1.4, 0.35, 0), Vector3(1.1, 0.35, 2.2), Color(0.37, 0.28, 0.2), true)
     var fire := MeshInstance3D.new()
     var sphere := SphereMesh.new()
     sphere.radius = 0.38
@@ -193,6 +193,14 @@ func _build_camp() -> void:
     fire_mat.emission_energy_multiplier = 1.8
     fire.material_override = fire_mat
     add_child(fire)
+    var fire_blocker := StaticBody3D.new()
+    fire_blocker.position = fire.position
+    var fire_collision := CollisionShape3D.new()
+    var fire_shape := SphereShape3D.new()
+    fire_shape.radius = 0.42
+    fire_collision.shape = fire_shape
+    fire_blocker.add_child(fire_collision)
+    add_child(fire_blocker)
 
 func _scatter_trees() -> void:
     var positions := [Vector3(-27,0,-25),Vector3(-27,0,-10),Vector3(-28,0,8),Vector3(-27,0,25),Vector3(28,0,-26),Vector3(28,0,-8),Vector3(28,0,10),Vector3(27,0,27),Vector3(-8,0,-28),Vector3(9,0,-29)]
