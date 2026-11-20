@@ -125,7 +125,7 @@ func _craft(id: String, cost: Dictionary, note: String) -> void:
     if crafted.get(id,false):
         game.show_message("Уже создано: "+id)
         return
-    var can_use_chest := game.player.global_position.distance_to(game.camp_position) < 5.0
+    var can_use_chest: bool = game.player.global_position.distance_to(game.camp_position) < 5.0
     for key in cost:
         var available := int(game.inventory.get(key,0))
         if can_use_chest:
