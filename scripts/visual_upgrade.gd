@@ -53,14 +53,14 @@ func _rebuild_house(label: String, tint: Color) -> void:
     _box(root,"Door lintel trim",Vector3(0,2.42,3.72),Vector3(3.35,0.16,0.16),trim,false)
     # Interior partitions and furniture are deliberately low-detail but readable silhouettes.
     _box(root,"Interior divider",Vector3(0,1.2,-1.15),Vector3(0.14,2.4,3.0),tint.darkened(0.14),true)
-    _box(root,"Bed base",Vector3(-2.65,0.23,-2.35),Vector3(1.9,0.3,1.25),Color(0.23,0.17,0.13),false)
-    _box(root,"Bed mattress",Vector3(-2.65,0.43,-2.35),Vector3(1.78,0.18,1.12),Color(0.47,0.43,0.35),false)
-    _box(root,"Kitchen cabinet",Vector3(2.6,0.55,-2.45),Vector3(2.1,1.1,0.65),Color(0.30,0.23,0.17),false)
-    _box(root,"Dining table",Vector3(1.8,0.72,1.0),Vector3(1.6,0.12,1.05),Color(0.33,0.23,0.15),false)
+    _box(root,"Bed base",Vector3(-2.65,0.23,-2.35),Vector3(1.9,0.3,1.25),Color(0.23,0.17,0.13),true)
+    _box(root,"Bed mattress",Vector3(-2.65,0.43,-2.35),Vector3(1.78,0.18,1.12),Color(0.47,0.43,0.35),true)
+    _box(root,"Kitchen cabinet",Vector3(2.6,0.55,-2.45),Vector3(2.1,1.1,0.65),Color(0.30,0.23,0.17),true)
+    _box(root,"Dining table",Vector3(1.8,0.72,1.0),Vector3(1.6,0.12,1.05),Color(0.33,0.23,0.15),true)
     for x in [1.2,2.4]:
         for z in [0.62,1.38]:
             _box(root,"Table leg",Vector3(x,0.35,z),Vector3(0.1,0.7,0.1),trim,false)
-    _box(root,"Wall shelf",Vector3(-2.2,2.25,-3.68),Vector3(1.8,0.12,0.42),trim,false)
+    _box(root,"Wall shelf",Vector3(-2.2,2.25,-3.68),Vector3(1.8,0.12,0.42),trim,true)
     _box(root,"Window pane",Vector3(-2.8,2.0,4.09),Vector3(1.0,0.95,0.045),Color(0.13,0.23,0.26),false)
     _box(root,"Window pane",Vector3(2.8,2.0,4.09),Vector3(1.0,0.95,0.045),Color(0.13,0.23,0.26),false)
     for x in [-3.38,-2.22,2.22,3.38]:
@@ -80,10 +80,10 @@ func _rebuild_shop() -> void:
     _box(root,"Market entrance left",Vector3(-3.9,0.85,4.35),Vector3(1.9,1.7,0.3),tint,true)
     _box(root,"Market entrance right",Vector3(3.9,0.85,4.35),Vector3(1.9,1.7,0.3),tint,true)
     _box(root,"Market entrance header",Vector3(0,3.35,4.35),Vector3(5.9,1.1,0.3),tint,true)
-    _box(root,"Shop counter detail",Vector3(0,0.65,-1.0),Vector3(5.6,1.25,0.8),Color(0.26,0.20,0.14),false)
+    _box(root,"Shop counter detail",Vector3(0,0.65,-1.0),Vector3(5.6,1.25,0.8),Color(0.26,0.20,0.14),true)
     for x in [-3.7,3.7]:
-        _box(root,"Grocery rack",Vector3(x,1.0,-1.9),Vector3(0.5,2.0,3.2),Color(0.28,0.24,0.18),false)
-    _box(root,"Broken display",Vector3(2.0,0.55,1.1),Vector3(1.5,1.1,0.65),Color(0.23,0.29,0.28),false)
+        _box(root,"Grocery rack",Vector3(x,1.0,-1.9),Vector3(0.5,2.0,3.2),Color(0.28,0.24,0.18),true)
+    _box(root,"Broken display",Vector3(2.0,0.55,1.1),Vector3(1.5,1.1,0.65),Color(0.23,0.29,0.28),true)
 
 func _rebuild_garage() -> void:
     var root := _find_building("Garage")
@@ -97,9 +97,9 @@ func _rebuild_garage() -> void:
     _box(root,"Garage front left",Vector3(-4.0,0.9,3.85),Vector3(1.7,1.8,0.3),tint,true)
     _box(root,"Garage front right",Vector3(4.0,0.9,3.85),Vector3(1.7,1.8,0.3),tint,true)
     _box(root,"Garage lintel",Vector3(0,3.15,3.85),Vector3(6.2,0.8,0.3),tint,true)
-    _box(root,"Workbench top",Vector3(-2.5,1.0,-2.2),Vector3(2.4,0.14,0.8),Color(0.28,0.21,0.14),false)
-    _box(root,"Workbench legs",Vector3(-2.5,0.48,-2.2),Vector3(2.2,0.9,0.12),Color(0.18,0.2,0.19),false)
-    _box(root,"Tool board",Vector3(-2.5,2.1,-3.65),Vector3(2.7,1.25,0.12),Color(0.25,0.29,0.27),false)
+    _box(root,"Workbench top",Vector3(-2.5,1.0,-2.2),Vector3(2.4,0.14,0.8),Color(0.28,0.21,0.14),true)
+    _box(root,"Workbench legs",Vector3(-2.5,0.48,-2.2),Vector3(2.2,0.9,0.12),Color(0.18,0.2,0.19),true)
+    _box(root,"Tool board",Vector3(-2.5,2.1,-3.65),Vector3(2.7,1.25,0.12),Color(0.25,0.29,0.27),true)
 
 func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color: Color, solid: bool) -> void:
     game.call("_box",parent,label,pos,dimensions,color,solid)
@@ -119,7 +119,17 @@ func _dress_greywood() -> void:
     _box(game,"Camp crate",game.camp_position+Vector3(2.4,0.45,-1.4),Vector3(0.9,0.9,0.9),Color(0.35,0.24,0.15),false)
     _box(game,"Camp barrel",game.camp_position+Vector3(2.5,0.6,1.2),Vector3(0.7,1.2,0.7),Color(0.24,0.32,0.31),false)
 
+
 func _bush(pos: Vector3, size: float) -> void:
+    var blocker := StaticBody3D.new()
+    blocker.position = pos
+    var collision := CollisionShape3D.new()
+    var shape := SphereShape3D.new()
+    shape.radius = 0.62 * size
+    collision.shape = shape
+    collision.position.y = 0.42 * size
+    blocker.add_child(collision)
+    game.add_child(blocker)
     var shades := [Color(0.16,0.27,0.18),Color(0.22,0.33,0.21),Color(0.27,0.34,0.22),Color(0.14,0.23,0.16)]
     for i in range(4):
         var leaf := MeshInstance3D.new()
@@ -133,7 +143,6 @@ func _bush(pos: Vector3, size: float) -> void:
         mat.roughness = 1.0
         leaf.material_override = mat
         game.add_child(leaf)
-
 func _replace_survivor_placeholder() -> void:
     for child in survivor.get_children():
         if child is MeshInstance3D and child.name != "FollowCamera":
@@ -156,22 +165,31 @@ func _replace_survivor_placeholder() -> void:
     _part(model,"Face shadow",BoxMesh.new(),Vector3(0,1.78,-0.2),Vector3(0.25,0.05,0.03),Color(0.3,0.22,0.18))
     _part(model,"Backpack",BoxMesh.new(),Vector3(0,1.13,0.34),Vector3(0.62,0.8,0.32),canvas)
     _part(model,"Backpack flap",BoxMesh.new(),Vector3(0,1.5,0.52),Vector3(0.52,0.16,0.07),dark)
-    for x in [-0.23,0.23]:
-        _part(model,"Backpack strap",BoxMesh.new(),Vector3(x,1.14,-0.22),Vector3(0.09,0.78,0.07),canvas)
-        _part(model,"Chest pocket",BoxMesh.new(),Vector3(x,1.0,-0.29),Vector3(0.2,0.24,0.08),dark)
-        _part(model,"Glove",SphereMesh.new(),Vector3(x*2.15,0.82,-0.02),Vector3(0.19,0.2,0.18),boots)
     _part(model,"Utility belt",BoxMesh.new(),Vector3(0,0.72,0),Vector3(0.72,0.12,0.48),boots)
     _part(model,"Buckle",BoxMesh.new(),Vector3(0,0.72,-0.25),Vector3(0.13,0.12,0.04),metal)
-    for x in [-0.19,0.19]:
-        _part(model,"Cargo trousers",CapsuleMesh.new(),Vector3(x,0.37,0),Vector3(0.32,0.72,0.34),pants)
-        _part(model,"Knee pad",BoxMesh.new(),Vector3(x,0.37,-0.17),Vector3(0.24,0.2,0.07),dark)
-        _part(model,"Boot",BoxMesh.new(),Vector3(x,0.12,-0.09),Vector3(0.28,0.2,0.44),boots)
+    var limbs: Array[Node3D] = []
     for x in [-0.42,0.42]:
-        _part(model,"Sleeve",CapsuleMesh.new(),Vector3(x,1.12,0),Vector3(0.27,0.7,0.28),jacket)
-        _part(model,"Elbow patch",BoxMesh.new(),Vector3(x,0.98,-0.12),Vector3(0.24,0.18,0.07),dark)
+        var arm := Node3D.new()
+        arm.name = "ArmPivot"
+        arm.position = Vector3(x,1.38,0)
+        model.add_child(arm)
+        _part(arm,"Sleeve",CapsuleMesh.new(),Vector3(0,-0.25,0),Vector3(0.27,0.7,0.28),jacket)
+        _part(arm,"Elbow patch",BoxMesh.new(),Vector3(0,-0.34,-0.12),Vector3(0.24,0.18,0.07),dark)
+        _part(arm,"Glove",SphereMesh.new(),Vector3(0,-0.59,-0.02),Vector3(0.19,0.2,0.18),boots)
+        limbs.append(arm)
+    for x in [-0.19,0.19]:
+        var leg := Node3D.new()
+        leg.name = "LegPivot"
+        leg.position = Vector3(x,0.68,0)
+        model.add_child(leg)
+        _part(leg,"Cargo trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.32,0.72,0.34),pants)
+        _part(leg,"Knee pad",BoxMesh.new(),Vector3(0,-0.30,-0.17),Vector3(0.24,0.2,0.07),dark)
+        _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.09),Vector3(0.28,0.2,0.44),boots)
+        limbs.append(leg)
     _part(model,"Radio",BoxMesh.new(),Vector3(-0.34,1.47,-0.18),Vector3(0.16,0.22,0.12),metal)
     _part(model,"Radio antenna",CylinderMesh.new(),Vector3(-0.36,1.62,-0.18),Vector3(0.025,0.22,0.025),dark)
-
+    survivor.animation_model = model
+    survivor.animation_parts = limbs
 func _part(parent: Node3D, label: String, mesh: PrimitiveMesh, pos: Vector3, scale_value: Vector3, color: Color) -> void:
     var node := MeshInstance3D.new()
     node.name = label
@@ -212,21 +230,30 @@ func _add_world_art_pass() -> void:
     _add_debris_pile(Vector3(-22,0,7))
     _add_roadside_grass()
 
+
 func _add_rock_cluster(origin: Vector3, scale_value: float) -> void:
     var colors := [Color(0.30,0.32,0.29),Color(0.38,0.38,0.33),Color(0.25,0.28,0.27)]
     for i in range(5):
+        var rock_body := StaticBody3D.new()
+        rock_body.position = origin + Vector3(float(i%3)*0.62-0.55,0.22*scale_value,float(i/3)*0.62-0.3)
+        var collision := CollisionShape3D.new()
+        var shape := SphereShape3D.new()
+        shape.radius = 0.48 * scale_value
+        collision.shape = shape
+        collision.position.y = 0.18 * scale_value
+        rock_body.add_child(collision)
         var rock := MeshInstance3D.new()
         var mesh := SphereMesh.new()
         mesh.radius = 0.55
         mesh.height = 0.75
         rock.mesh = mesh
-        rock.position = origin + Vector3(float(i%3)*0.62-0.55,0.22*scale_value,float(i/3)*0.62-0.3)
         rock.scale = Vector3(1.0+float(i%2)*0.35,0.65,0.85)*scale_value
         var mat := StandardMaterial3D.new()
         mat.albedo_color = colors[i%colors.size()]
         mat.roughness = 1.0
         rock.material_override = mat
-        game.add_child(rock)
+        rock_body.add_child(rock)
+        game.add_child(rock_body)
 
 func _add_vehicle(origin: Vector3, yaw: float, paint: Color) -> void:
     var car := Node3D.new()
@@ -234,13 +261,13 @@ func _add_vehicle(origin: Vector3, yaw: float, paint: Color) -> void:
     car.position = origin
     car.rotation.y = yaw
     game.add_child(car)
-    _box(car,"Rusty chassis",Vector3(0,0.72,0),Vector3(4.0,0.72,1.85),paint,false)
-    _box(car,"Cabin shell",Vector3(-0.25,1.48,0),Vector3(2.1,0.92,1.62),paint.darkened(0.12),false)
+    _box(car,"Rusty chassis",Vector3(0,0.72,0),Vector3(4.0,0.72,1.85),paint,true)
+    _box(car,"Cabin shell",Vector3(-0.25,1.48,0),Vector3(2.1,0.92,1.62),paint.darkened(0.12),true)
     _box(car,"Windshield",Vector3(-0.25,1.55,-0.83),Vector3(1.55,0.62,0.035),Color(0.12,0.19,0.2),false)
     _box(car,"Rear window",Vector3(-0.25,1.55,0.83),Vector3(1.45,0.58,0.035),Color(0.10,0.15,0.16),false)
-    _box(car,"Hood",Vector3(-1.45,1.05,0),Vector3(0.9,0.18,1.72),paint.lightened(0.06),false)
-    _box(car,"Front bumper",Vector3(-2.04,0.52,0),Vector3(0.16,0.22,2.0),Color(0.24,0.26,0.25),false)
-    _box(car,"Rear bumper",Vector3(2.04,0.52,0),Vector3(0.16,0.22,2.0),Color(0.24,0.26,0.25),false)
+    _box(car,"Hood",Vector3(-1.45,1.05,0),Vector3(0.9,0.18,1.72),paint.lightened(0.06),true)
+    _box(car,"Front bumper",Vector3(-2.04,0.52,0),Vector3(0.16,0.22,2.0),Color(0.24,0.26,0.25),true)
+    _box(car,"Rear bumper",Vector3(2.04,0.52,0),Vector3(0.16,0.22,2.0),Color(0.24,0.26,0.25),true)
     for x in [-1.35,1.35]:
         for z in [-0.98,0.98]:
             var wheel := MeshInstance3D.new()
@@ -263,35 +290,26 @@ func _add_vehicle(origin: Vector3, yaw: float, paint: Color) -> void:
 func _add_fence_line(origin: Vector3, count: int, direction: Vector3) -> void:
     for i in range(count):
         var p := origin + direction * float(i) * 1.7
-        _box(game,"Weathered fence post",p+Vector3(0,0.65,0),Vector3(0.16,1.3,0.16),Color(0.28,0.23,0.17),false)
+        _box(game,"Weathered fence post",p+Vector3(0,0.65,0),Vector3(0.16,1.3,0.16),Color(0.28,0.23,0.17),true)
         if i < count-1:
-            _box(game,"Fence rail",p+direction*0.85+Vector3(0,0.95,0),Vector3(0.12,0.12,1.7),Color(0.34,0.27,0.19),false)
+            _box(game,"Fence rail",p+direction*0.85+Vector3(0,0.95,0),Vector3(0.12,0.12,1.7),Color(0.34,0.27,0.19),true)
 
 func _add_dead_tree(pos: Vector3, size: float) -> void:
-    _box(game,"Dead tree trunk",pos+Vector3(0,1.35*size,0),Vector3(0.42*size,2.7*size,0.42*size),Color(0.23,0.19,0.15),false)
-    _box(game,"Dead branch",pos+Vector3(0.55*size,2.15*size,0),Vector3(1.35*size,0.16*size,0.16*size),Color(0.23,0.19,0.15),false)
-    _box(game,"Dead branch",pos+Vector3(-0.42*size,2.35*size,0),Vector3(1.0*size,0.14*size,0.14*size),Color(0.25,0.20,0.16),false)
+    _box(game,"Dead tree trunk",pos+Vector3(0,1.35*size,0),Vector3(0.42*size,2.7*size,0.42*size),Color(0.23,0.19,0.15),true)
+    _box(game,"Dead branch",pos+Vector3(0.55*size,2.15*size,0),Vector3(1.35*size,0.16*size,0.16*size),Color(0.23,0.19,0.15),true)
+    _box(game,"Dead branch",pos+Vector3(-0.42*size,2.35*size,0),Vector3(1.0*size,0.14*size,0.14*size),Color(0.25,0.20,0.16),true)
 
 func _add_signpost(pos: Vector3) -> void:
-    _box(game,"Road sign pole",pos+Vector3(0,1.1,0),Vector3(0.12,2.2,0.12),Color(0.24,0.23,0.19),false)
-    _box(game,"Road sign board",pos+Vector3(0,1.95,0),Vector3(1.5,0.8,0.12),Color(0.34,0.39,0.31),false)
+    _box(game,"Road sign pole",pos+Vector3(0,1.1,0),Vector3(0.12,2.2,0.12),Color(0.24,0.23,0.19),true)
+    _box(game,"Road sign board",pos+Vector3(0,1.95,0),Vector3(1.5,0.8,0.12),Color(0.34,0.39,0.31),true)
     _box(game,"Sign warning stripe",pos+Vector3(0,1.95,-0.075),Vector3(1.1,0.08,0.025),Color(0.72,0.55,0.29),false)
 
 func _add_debris_pile(pos: Vector3) -> void:
     var colors := [Color(0.27,0.28,0.25),Color(0.39,0.31,0.22),Color(0.18,0.22,0.21)]
     for i in range(6):
-        var piece := MeshInstance3D.new()
-        var mesh := BoxMesh.new()
-        mesh.size = Vector3(0.45+float(i%2)*0.22,0.16,0.3+float(i%3)*0.12)
-        piece.mesh = mesh
-        piece.position = pos+Vector3(float(i%3)*0.42-0.4,0.12+float(i%2)*0.08,float(i/3)*0.42-0.2)
-        piece.rotation.y = float(i)*0.53
-        var mat := StandardMaterial3D.new()
-        mat.albedo_color = colors[i%colors.size()]
-        mat.roughness = 1.0
-        piece.material_override = mat
-        game.add_child(piece)
-
+        var dims := Vector3(0.45+float(i%2)*0.22,0.16,0.3+float(i%3)*0.12)
+        var p := pos+Vector3(float(i%3)*0.42-0.4,0.12+float(i%2)*0.08,float(i/3)*0.42-0.2)
+        _box(game,"Debris collision",p,dims,colors[i%colors.size()],true)
 func _add_roadside_grass() -> void:
     var grass_colors := [Color(0.25,0.34,0.20),Color(0.33,0.39,0.23),Color(0.19,0.29,0.18)]
     for i in range(34):
@@ -312,6 +330,7 @@ func _add_roadside_grass() -> void:
             tuft.material_override = mat
             game.add_child(tuft)
 
+
 func _infected_model(enemy: Node3D) -> void:
     var skin := Color(0.38,0.43,0.31)
     var rotten := Color(0.24,0.29,0.23)
@@ -323,11 +342,23 @@ func _infected_model(enemy: Node3D) -> void:
     _part(enemy,"Dark hair",SphereMesh.new(),Vector3(0,1.99,0.0),Vector3(0.48,0.20,0.45),Color(0.12,0.13,0.11))
     _part(enemy,"Jaw shadow",BoxMesh.new(),Vector3(0,1.63,-0.25),Vector3(0.26,0.10,0.04),rotten)
     _part(enemy,"Torn shirt",BoxMesh.new(),Vector3(0,0.92,-0.25),Vector3(0.38,0.46,0.05),torn)
-    for x in [-0.2,0.2]:
-        _part(enemy,"Worn trousers",CapsuleMesh.new(),Vector3(x,0.38,0),Vector3(0.29,0.68,0.3),Color(0.19,0.21,0.19))
-        _part(enemy,"Boot",BoxMesh.new(),Vector3(x,0.12,-0.07),Vector3(0.25,0.18,0.36),Color(0.10,0.11,0.10))
+    var limbs: Array[Node3D] = []
     for x in [-0.43,0.43]:
-        _part(enemy,"Hanging sleeve",CapsuleMesh.new(),Vector3(x,1.02,-0.02),Vector3(0.25,0.72,0.25),cloth)
-        _part(enemy,"Exposed hand",SphereMesh.new(),Vector3(x*1.25,0.60,-0.03),Vector3(0.17,0.20,0.15),skin)
-    _part(enemy,"Shoulder tear",BoxMesh.new(),Vector3(-0.34,1.31,-0.24),Vector3(0.22,0.12,0.05),torn)
+        var arm := Node3D.new()
+        arm.name = "InfectedArmPivot"
+        arm.position = Vector3(x,1.35,-0.02)
+        enemy.add_child(arm)
+        _part(arm,"Hanging sleeve",CapsuleMesh.new(),Vector3(0,-0.28,0),Vector3(0.25,0.72,0.25),cloth)
+        _part(arm,"Exposed hand",SphereMesh.new(),Vector3(0,-0.67,-0.03),Vector3(0.17,0.20,0.15),skin)
+        _part(arm,"Sleeve tear",BoxMesh.new(),Vector3(0,-0.42,-0.13),Vector3(0.20,0.13,0.05),torn)
+        limbs.append(arm)
+    for x in [-0.2,0.2]:
+        var leg := Node3D.new()
+        leg.name = "InfectedLegPivot"
+        leg.position = Vector3(x,0.68,0)
+        enemy.add_child(leg)
+        _part(leg,"Worn trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.29,0.68,0.3),Color(0.19,0.21,0.19))
+        _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.07),Vector3(0.25,0.18,0.36),Color(0.10,0.11,0.10))
+        limbs.append(leg)
     _part(enemy,"Eye glint",SphereMesh.new(),Vector3(0.12,1.82,-0.275),Vector3(0.045,0.045,0.025),Color(0.78,0.58,0.32))
+    enemy.animation_parts = limbs
