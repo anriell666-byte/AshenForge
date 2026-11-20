@@ -121,8 +121,8 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
     var gait := sin(animation_clock * (10.0 if sprinting else 7.0))
     var swing := clampf(moving / maxf(0.1, sprint_speed), 0.0, 1.0)
     if is_instance_valid(animation_model):
-        animation_model.position.y = ( -0.16 if is_sneaking else 0.0) + absf(gait) * 0.045 * swing
-        animation_model.rotation.x = 0.13 if is_sneaking else 0.0
+        animation_model.position.y = (-0.16 if is_sneaking else 0.0) + absf(gait) * 0.045 * swing + sin(animation_clock * 2.0) * 0.012
+        animation_model.rotation.x = (0.13 if is_sneaking else 0.0) + sin(animation_clock * 1.7) * 0.008
     for i in range(animation_parts.size()):
         var part := animation_parts[i]
         if not is_instance_valid(part):
