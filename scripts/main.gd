@@ -410,7 +410,8 @@ func _refresh_inventory_ui() -> void:
     for key in keys:
         lines.append("%s: %d" % [labels[key], int(inventory.get(key, 0))])
     lines.append("Вес: %.1f / %.1f кг" % [_inventory_weight(), carry_capacity])
-    lines.append("Инструменты: базовое снаряжение")
+    lines.append("Урон оружия: %d" % roundi(_current_weapon_damage()))
+    lines.append("Инструмент: %s" % (player.equipped_tool if player.equipped_tool != "" else "нет"))
     inventory_label.text = "\n".join(lines)
     upgrade_info.text = "Навыки становятся доступны за опыт. Каждые 100 XP — новый уровень."
     for button in upgrade_buttons:
@@ -509,7 +510,15 @@ func _take_all_resources() -> void:
     _refresh_chest_ui()
     _refresh_inventory_ui()
     refresh_hud()
+    save_game(false)
     show_message("В рюкзак помещено всё, для чего хватило места.")
+
+func _current_weapon_damage() -> float:
+    if player.equipped_weapon == "spear": return 28.0
+    if player.equipped_weapon == "bow": return 22.0
+    if player.equipped_tool == "hatchet": return 16.0
+    if player.equipped_tool == "crowbar": return 18.0
+    return 8.0
 
 func _inventory_weight() -> float:
     var total := 0.0
@@ -741,7 +750,7 @@ func player_died() -> void:
     show_message("Ты погиб. Перезапусти игру, чтобы продолжить.")
     save_game()
 
-func save_game() -> void:
+func save_game(show_feedback: bool = true) -> void:
     var saved_loot: Array[Dictionary] = []
     for drop in loot_drops:
         var node: Node3D = drop.get("node")
@@ -752,7 +761,8 @@ func save_game() -> void:
     if file:
         file.store_string(JSON.stringify(data))
         file.close()
-        show_message("Игра сохранена.")
+        if show_feedback:
+            show_message("Игра сохранена.")
 
 func _load_game() -> void:
     if not FileAccess.file_exists(SAVE_PATH):
@@ -808,3 +818,4 @@ func _load_game() -> void:
                 prop.queue_free()
     refresh_hud()
     _refresh_inventory_ui()
+    _refresh_chest_ui()
