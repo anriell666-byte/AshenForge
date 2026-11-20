@@ -14,6 +14,11 @@ var props: Array = []
 var loot_drops: Array[Dictionary] = []
 var infected: Array = []
 var inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0}
+var chest_inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0}
+var camp_chest_position := Vector3(-12.0, 0.0, 10.8)
+var chest_panel: PanelContainer
+var chest_label: Label
+var chest_value_labels: Dictionary = {}
 var resource_weights := {"wood": 0.8, "scrap": 1.2, "plastic": 0.25, "cloth": 0.15, "food": 0.35, "medicine": 0.1}
 var carry_capacity: float = 35.0
 var player_xp: int = 0
@@ -173,6 +178,13 @@ func _build_camp() -> void:
     sphere.height = 0.7
     fire.mesh = sphere
     fire.position = camp_position + Vector3(1.1, 0.35, 0.3)
+    var chest_root := Node3D.new()
+    chest_root.name = "CampStorageChest"
+    chest_root.position = camp_chest_position
+    add_child(chest_root)
+    _box(chest_root, "Storage chest body", Vector3(0, 0.55, 0), Vector3(1.5, 1.1, 1.0), Color(0.31, 0.22, 0.14), true)
+    _box(chest_root, "Storage chest lid", Vector3(0, 1.13, 0), Vector3(1.55, 0.12, 1.05), Color(0.40, 0.29, 0.18), true)
+    _box(chest_root, "Storage chest lock", Vector3(0, 0.78, -0.53), Vector3(0.22, 0.28, 0.08), Color(0.55, 0.48, 0.29), false)
     var fire_mat := StandardMaterial3D.new()
     fire_mat.albedo_color = Color(1.0, 0.35, 0.08)
     fire_mat.emission_enabled = true
@@ -332,6 +344,7 @@ func _build_ui() -> void:
     var bag_button := _make_ui_button(layer, "BAG", Vector2(18, 118), Vector2(105, 48))
     bag_button.pressed.connect(toggle_inventory)
     _build_inventory_panel(layer)
+    _build_chest_panel(layer)
 
 func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vector2) -> Button:
     var button := Button.new()
@@ -401,6 +414,101 @@ func _refresh_inventory_ui() -> void:
     upgrade_info.text = "Навыки становятся доступны за опыт. Каждые 100 XP — новый уровень."
     for button in upgrade_buttons:
         button.disabled = skill_points <= 0
+
+
+func _build_chest_panel(layer: CanvasLayer) -> void:
+    chest_panel = PanelContainer.new()
+    chest_panel.position = Vector2(360, 145)
+    chest_panel.custom_minimum_size = Vector2(390, 390)
+    chest_panel.visible = false
+    layer.add_child(chest_panel)
+    var column := VBoxContainer.new()
+    chest_panel.add_child(column)
+    var title := Label.new()
+    title.text = "ЛАГЕРНЫЙ СХРОН"
+    title.add_theme_font_size_override("font_size", 20)
+    column.add_child(title)
+    chest_label = Label.new()
+    column.add_child(chest_label)
+    var deposit_all := _make_ui_button(column, "СЛОЖИТЬ ВСЁ В СУНДУК", Vector2.ZERO, Vector2.ZERO)
+    deposit_all.pressed.connect(_store_all_resources)
+    var take_all := _make_ui_button(column, "ЗАБРАТЬ ВСЁ В РЮКЗАК", Vector2.ZERO, Vector2.ZERO)
+    take_all.pressed.connect(_take_all_resources)
+    var keys := ["wood", "scrap", "plastic", "cloth", "food", "medicine"]
+    var labels := {"wood":"Дерево", "scrap":"Металлолом", "plastic":"Пластик", "cloth":"Ткань", "food":"Еда", "medicine":"Медикаменты"}
+    for key in keys:
+        var row := HBoxContainer.new()
+        column.add_child(row)
+        var value := Label.new()
+        value.custom_minimum_size = Vector2(205, 30)
+        value.text = str(labels[key])
+        row.add_child(value)
+        chest_value_labels[key] = value
+        var resource_key := str(key)
+        var put := _make_ui_button(row, "→", Vector2.ZERO, Vector2(44, 34))
+        put.pressed.connect(_deposit_one.bind(resource_key))
+        var take := _make_ui_button(row, "←", Vector2.ZERO, Vector2(44, 34))
+        take.pressed.connect(_withdraw_one.bind(resource_key))
+    var close := _make_ui_button(column, "ЗАКРЫТЬ", Vector2.ZERO, Vector2.ZERO)
+    close.pressed.connect(func(): chest_panel.visible = false)
+    _refresh_chest_ui()
+
+func _refresh_chest_ui() -> void:
+    if not chest_panel:
+        return
+    var total := 0
+    for key in chest_inventory:
+        total += int(chest_inventory[key])
+        if chest_value_labels.has(key):
+            chest_value_labels[key].text = "%s   Рюкзак %d  |  Сундук %d" % [str(key).capitalize(), int(inventory.get(key, 0)), int(chest_inventory.get(key, 0))]
+    if chest_label:
+        chest_label.text = "Хранилище: %d единиц. Не занимает вес рюкзака." % total
+
+func _deposit_one(resource: String) -> void:
+    if int(inventory.get(resource, 0)) <= 0:
+        show_message("В рюкзаке нет этого ресурса.")
+        return
+    inventory[resource] -= 1
+    chest_inventory[resource] = int(chest_inventory.get(resource, 0)) + 1
+    _refresh_chest_ui()
+    _refresh_inventory_ui()
+    refresh_hud()
+
+func _withdraw_one(resource: String) -> void:
+    if int(chest_inventory.get(resource, 0)) <= 0:
+        show_message("В сундуке нет этого ресурса.")
+        return
+    var unit_weight := float(resource_weights.get(resource, 0.5))
+    if _inventory_weight() + unit_weight > carry_capacity:
+        show_message("В рюкзаке нет места.")
+        return
+    chest_inventory[resource] -= 1
+    inventory[resource] = int(inventory.get(resource, 0)) + 1
+    _refresh_chest_ui()
+    _refresh_inventory_ui()
+    refresh_hud()
+
+func _store_all_resources() -> void:
+    for key in inventory:
+        chest_inventory[key] = int(chest_inventory.get(key, 0)) + int(inventory[key])
+        inventory[key] = 0
+    _refresh_chest_ui()
+    _refresh_inventory_ui()
+    refresh_hud()
+
+func _take_all_resources() -> void:
+    for key in chest_inventory:
+        var unit_weight := float(resource_weights.get(key, 0.5))
+        var free_weight := maxf(0.0, carry_capacity - _inventory_weight())
+        var can_take := int(floor(free_weight / unit_weight)) if unit_weight > 0.0 else int(chest_inventory[key])
+        var amount := mini(int(chest_inventory[key]), can_take)
+        if amount > 0:
+            inventory[key] = int(inventory.get(key, 0)) + amount
+            chest_inventory[key] = int(chest_inventory[key]) - amount
+    _refresh_chest_ui()
+    _refresh_inventory_ui()
+    refresh_hud()
+    show_message("В рюкзак помещено всё, для чего хватило места.")
 
 func _inventory_weight() -> float:
     var total := 0.0
@@ -478,8 +586,10 @@ func _refresh_context_hint() -> void:
                 nearest_prop = prop
     if nearest_prop:
         context_label.text = "E / ACTION — разобрать: %s" % nearest_prop.object_name
-    elif player.global_position.distance_to(camp_position) < 5.0:
-        context_label.text = "E / ACTION — отдохнуть и сохранить игру"
+    elif player.global_position.distance_to(camp_chest_position) < 2.1:
+        context_label.text = "E / ACTION — открыть лагерный сундук"
+    elif player.global_position.distance_to(camp_position) < 3.5:
+        context_label.text = "E / ACTION — отдохнуть у костра"
     else:
         context_label.text = ""
 
@@ -538,11 +648,17 @@ func interact() -> void:
         return
     if _collect_nearest_drop():
         return
-    if player.global_position.distance_to(camp_position) < 5.0:
+    if player.global_position.distance_to(camp_chest_position) < 2.1:
+        if chest_panel:
+            chest_panel.visible = not chest_panel.visible
+            _refresh_chest_ui()
+        return
+    if player.global_position.distance_to(camp_position) < 3.5:
         player.health = player.max_health
         player.stamina = player.max_stamina
+        _store_all_resources()
         save_game()
-        show_message("Ты отдохнул. Прогресс сохранён.")
+        show_message("Ты отдохнул. Ресурсы убраны в лагерный сундук, прогресс сохранён.")
         refresh_hud()
         return
     var nearest: Node = null
@@ -560,7 +676,7 @@ func interact() -> void:
 
 func player_attack() -> void:
     var nearest: Node = null
-    var best := 2.6
+    var best := 7.0 if player.equipped_weapon == "bow" else (3.2 if player.equipped_weapon == "spear" else 2.6)
     for enemy in infected:
         if is_instance_valid(enemy):
             var d: float = player.global_position.distance_to(enemy.global_position)
@@ -570,8 +686,15 @@ func player_attack() -> void:
     if expansion and expansion.call("try_attack"):
         return
     if nearest:
-        nearest.call("take_hit", 2.0 if player.equipped_weapon == "spear" else 1.0)
-        show_message("Удар!")
+        var weapon_damage := 8.0
+        match player.equipped_weapon:
+            "spear": weapon_damage = 28.0
+            "bow": weapon_damage = 22.0
+            "":
+                if player.equipped_tool == "hatchet": weapon_damage = 16.0
+                elif player.equipped_tool == "crowbar": weapon_damage = 18.0
+        nearest.call("take_hit", weapon_damage)
+        show_message("Попадание! Урон: %d" % roundi(weapon_damage))
     else:
         show_message("Никого рядом.")
 
@@ -623,7 +746,7 @@ func save_game() -> void:
         var node: Node3D = drop.get("node")
         if is_instance_valid(node):
             saved_loot.append({"resource": str(drop.get("resource", "scrap")), "amount": int(drop.get("amount", 1)), "position": [node.global_position.x, node.global_position.y, node.global_position.z]})
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw}
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "chest": chest_inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -650,6 +773,10 @@ func _load_game() -> void:
     if saved_inventory is Dictionary:
         for key in saved_inventory:
             inventory[key] = int(saved_inventory[key])
+    var saved_chest = parsed.get("chest", {})
+    if saved_chest is Dictionary:
+        for key in saved_chest:
+            chest_inventory[key] = int(saved_chest[key])
     var saved_loot = parsed.get("loot", [])
     if saved_loot is Array:
         for saved_drop in saved_loot:
