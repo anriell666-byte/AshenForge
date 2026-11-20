@@ -121,7 +121,7 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
     var gait := sin(animation_clock * (10.0 if sprinting else 7.0))
     var swing := clampf(moving / maxf(0.1, sprint_speed), 0.0, 1.0)
     if is_instance_valid(animation_model):
-        animation_model.position.y = (-0.16 if is_sneaking else 0.0) + absf(gait) * 0.045 * swing + sin(animation_clock * 2.0) * 0.012
+        animation_model.position.y = (-0.06 if is_sneaking else 0.0) + absf(gait) * 0.045 * swing + sin(animation_clock * 2.0) * 0.012
         animation_model.rotation.x = (0.13 if is_sneaking else 0.0) + sin(animation_clock * 1.7) * 0.008
     for i in range(animation_parts.size()):
         var part := animation_parts[i]
@@ -134,6 +134,8 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
             part.rotation.z = phase * 0.52 * swing
         if is_sneaking and i < 2:
             part.rotation.z *= 0.35
+        elif is_sneaking and i >= 2:
+            part.rotation.z += 0.12 if i == 2 else -0.12
 
 func rotate_camera(amount: float) -> void:
     camera_yaw += amount
