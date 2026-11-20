@@ -62,7 +62,8 @@ func _build_health_bar() -> void:
 func _process(_delta: float) -> void:
     if is_instance_valid(health_root):
         health_root.global_position = global_position + Vector3(0, 2.42, 0)
-        health_root.global_rotation = Vector3(-0.22, 0.0, 0.0)
+        var facing_yaw := float(target.get("camera_yaw")) if is_instance_valid(target) else 0.0
+        health_root.global_rotation = Vector3(-0.22, facing_yaw, 0.0)
 
 func _physics_process(delta: float) -> void:
     animation_clock += delta
