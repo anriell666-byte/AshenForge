@@ -63,11 +63,11 @@ func _ready() -> void:
     follow_camera = Camera3D.new()
     follow_camera.name = "FollowCamera"
     follow_camera.top_level = true
+    add_child(follow_camera)
     follow_camera.global_position = global_position + camera_offset
-    follow_camera.rotation_degrees = Vector3(-47.0, 0.0, 0.0)
+    follow_camera.rotation_degrees = Vector3(camera_pitch, 0.0, 0.0)
     follow_camera.current = true
     follow_camera.fov = 52.0
-    add_child(follow_camera)
 
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)
