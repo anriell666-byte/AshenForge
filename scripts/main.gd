@@ -74,6 +74,7 @@ func _setup_input() -> void:
     _add_key("move_right", KEY_D)
     _add_key("move_right", KEY_RIGHT)
     _add_key("sprint", KEY_SHIFT)
+    _add_key("sneak", KEY_C)
     _add_key("interact", KEY_E)
     _add_key("attack", KEY_SPACE)
 
