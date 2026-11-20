@@ -19,6 +19,7 @@ var invulnerable: float = 0.0
 var follow_camera: Camera3D
 var camera_offset := Vector3(0.0, 12.5, 11.5)
 var camera_yaw: float = 0.0
+var camera_pitch: float = -47.0
 var is_sneaking: bool = false
 var equipped_weapon: String = ""
 var equipped_tool: String = ""
@@ -94,6 +95,7 @@ func _physics_process(delta: float) -> void:
         if stamina_regen_delay <= 0.0:
             stamina = minf(max_stamina, stamina + STAMINA_REGEN_RATE * delta)
     camera_yaw += camera_touch_vector.x * 1.85 * delta
+    camera_pitch = clampf(camera_pitch - camera_touch_vector.y * 36.0 * delta, -62.0, -32.0)
     var rotated := Vector2(direction.x, direction.z).rotated(camera_yaw)
     velocity.x = rotated.x * speed
     velocity.z = rotated.y * speed
@@ -107,8 +109,11 @@ func _physics_process(delta: float) -> void:
     _animate_character(delta, direction.length(), sprinting)
     # Keep the camera centered on the player without inheriting player rotation.
     if is_instance_valid(follow_camera):
-        follow_camera.global_position = global_position + camera_offset.rotated(Vector3.UP, camera_yaw)
-        follow_camera.rotation_degrees.y = rad_to_deg(camera_yaw)
+        var pitch_radians := deg_to_rad(-camera_pitch)
+        var camera_distance := camera_offset.length()
+        var orbit_offset := Vector3(0.0, sin(pitch_radians) * camera_distance, cos(pitch_radians) * camera_distance)
+        follow_camera.global_position = global_position + orbit_offset.rotated(Vector3.UP, camera_yaw)
+        follow_camera.rotation_degrees = Vector3(camera_pitch, rad_to_deg(camera_yaw), 0.0)
     if is_instance_valid(main_game):
         main_game.call("refresh_stamina_hud")
         if Engine.get_physics_frames() % 12 == 0:
