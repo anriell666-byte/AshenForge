@@ -125,16 +125,28 @@ func _craft(id: String, cost: Dictionary, note: String) -> void:
     if crafted.get(id,false):
         game.show_message("Уже создано: "+id)
         return
+    var can_use_chest := game.player.global_position.distance_to(game.camp_position) < 5.0
     for key in cost:
-        if int(game.inventory.get(key,0)) < int(cost[key]):
+        var available := int(game.inventory.get(key,0))
+        if can_use_chest:
+            available += int(game.chest_inventory.get(key,0))
+        if available < int(cost[key]):
             game.show_message("Не хватает ресурсов: "+str(key))
             return
-    for key in cost: game.inventory[key] -= int(cost[key])
+    for key in cost:
+        var needed := int(cost[key])
+        var from_bag := mini(needed, int(game.inventory.get(key,0)))
+        game.inventory[key] = int(game.inventory.get(key,0)) - from_bag
+        needed -= from_bag
+        if needed > 0 and can_use_chest:
+            game.chest_inventory[key] = int(game.chest_inventory.get(key,0)) - needed
     crafted[id] = true
     if id == "hatchet" or id == "crowbar": game.player.equipped_tool = id
     else: game.player.equipped_weapon = id
     game.show_message("Создано: "+id+" — "+note)
     game._refresh_inventory_ui()
+    game.call("_refresh_chest_ui")
+    game.call("save_game", false)
     _refresh_status()
 func _refresh_status() -> void:
     if status_label:
