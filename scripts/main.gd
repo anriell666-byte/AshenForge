@@ -475,6 +475,7 @@ func _deposit_one(resource: String) -> void:
     _refresh_chest_ui()
     _refresh_inventory_ui()
     refresh_hud()
+    save_game(false)
 
 func _withdraw_one(resource: String) -> void:
     if int(chest_inventory.get(resource, 0)) <= 0:
@@ -489,6 +490,7 @@ func _withdraw_one(resource: String) -> void:
     _refresh_chest_ui()
     _refresh_inventory_ui()
     refresh_hud()
+    save_game(false)
 
 func _store_all_resources() -> void:
     for key in inventory:
@@ -497,6 +499,7 @@ func _store_all_resources() -> void:
     _refresh_chest_ui()
     _refresh_inventory_ui()
     refresh_hud()
+    save_game(false)
 
 func _take_all_resources() -> void:
     for key in chest_inventory:
