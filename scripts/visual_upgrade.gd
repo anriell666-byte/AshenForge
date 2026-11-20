@@ -332,22 +332,25 @@ func _add_roadside_grass() -> void:
 
 
 func _infected_model(enemy: Node3D) -> void:
+    var model := Node3D.new()
+    model.name = "InfectedRig"
+    enemy.add_child(model)
     var skin := Color(0.38,0.43,0.31)
     var rotten := Color(0.24,0.29,0.23)
     var cloth := Color(0.22,0.25,0.23)
     var torn := Color(0.36,0.27,0.20)
-    _part(enemy,"Torn jacket torso",CapsuleMesh.new(),Vector3(0,1.05,0),Vector3(0.72,0.9,0.48),cloth)
-    _part(enemy,"Hunched shoulders",SphereMesh.new(),Vector3(0,1.42,0.02),Vector3(0.82,0.38,0.48),rotten)
-    _part(enemy,"Infected head",SphereMesh.new(),Vector3(0,1.78,-0.06),Vector3(0.48,0.48,0.44),skin)
-    _part(enemy,"Dark hair",SphereMesh.new(),Vector3(0,1.99,0.0),Vector3(0.48,0.20,0.45),Color(0.12,0.13,0.11))
-    _part(enemy,"Jaw shadow",BoxMesh.new(),Vector3(0,1.63,-0.25),Vector3(0.26,0.10,0.04),rotten)
-    _part(enemy,"Torn shirt",BoxMesh.new(),Vector3(0,0.92,-0.25),Vector3(0.38,0.46,0.05),torn)
+    _part(model,"Torn jacket torso",CapsuleMesh.new(),Vector3(0,1.05,0),Vector3(0.72,0.9,0.48),cloth)
+    _part(model,"Hunched shoulders",SphereMesh.new(),Vector3(0,1.42,0.02),Vector3(0.82,0.38,0.48),rotten)
+    _part(model,"Infected head",SphereMesh.new(),Vector3(0,1.78,-0.06),Vector3(0.48,0.48,0.44),skin)
+    _part(model,"Dark hair",SphereMesh.new(),Vector3(0,1.99,0.0),Vector3(0.48,0.20,0.45),Color(0.12,0.13,0.11))
+    _part(model,"Jaw shadow",BoxMesh.new(),Vector3(0,1.63,-0.25),Vector3(0.26,0.10,0.04),rotten)
+    _part(model,"Torn shirt",BoxMesh.new(),Vector3(0,0.92,-0.25),Vector3(0.38,0.46,0.05),torn)
     var limbs: Array[Node3D] = []
     for x in [-0.43,0.43]:
         var arm := Node3D.new()
         arm.name = "InfectedArmPivot"
         arm.position = Vector3(x,1.35,-0.02)
-        enemy.add_child(arm)
+        model.add_child(arm)
         _part(arm,"Hanging sleeve",CapsuleMesh.new(),Vector3(0,-0.28,0),Vector3(0.25,0.72,0.25),cloth)
         _part(arm,"Exposed hand",SphereMesh.new(),Vector3(0,-0.67,-0.03),Vector3(0.17,0.20,0.15),skin)
         _part(arm,"Sleeve tear",BoxMesh.new(),Vector3(0,-0.42,-0.13),Vector3(0.20,0.13,0.05),torn)
@@ -356,9 +359,10 @@ func _infected_model(enemy: Node3D) -> void:
         var leg := Node3D.new()
         leg.name = "InfectedLegPivot"
         leg.position = Vector3(x,0.68,0)
-        enemy.add_child(leg)
+        model.add_child(leg)
         _part(leg,"Worn trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.29,0.68,0.3),Color(0.19,0.21,0.19))
         _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.07),Vector3(0.25,0.18,0.36),Color(0.10,0.11,0.10))
         limbs.append(leg)
-    _part(enemy,"Eye glint",SphereMesh.new(),Vector3(0.12,1.82,-0.275),Vector3(0.045,0.045,0.025),Color(0.78,0.58,0.32))
+    _part(model,"Eye glint",SphereMesh.new(),Vector3(0.12,1.82,-0.275),Vector3(0.045,0.045,0.025),Color(0.78,0.58,0.32))
+    enemy.animation_model = model
     enemy.animation_parts = limbs
