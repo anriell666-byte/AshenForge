@@ -110,14 +110,14 @@ func _dress_greywood() -> void:
         _bush(p,1.0)
     for p in [Vector3(-11,0,-23),Vector3(12,0,-23),Vector3(-11,0,5),Vector3(12,0,17),Vector3(24,0,-4)]:
         _box(game,"Cracked asphalt",p+Vector3(0,0.04,0),Vector3(2.0,0.04,1.15),Color(0.12,0.14,0.13),false)
-        _box(game,"Roadside rubble",p+Vector3(1.1,0.22,0.65),Vector3(0.65,0.42,0.55),Color(0.31,0.28,0.23),false)
+        _box(game,"Roadside rubble",p+Vector3(1.1,0.22,0.65),Vector3(0.65,0.42,0.55),Color(0.31,0.28,0.23),true)
     for p in [Vector3(-24,0,-5),Vector3(24,0,-15),Vector3(-25,0,18),Vector3(26,0,20)]:
         _box(game,"Streetlight",p+Vector3(0,2.2,0),Vector3(0.16,4.4,0.16),Color(0.21,0.24,0.22),true)
-        _box(game,"Lamp arm",p+Vector3(0.5,4.25,0),Vector3(1.0,0.12,0.12),Color(0.21,0.24,0.22),false)
-        _box(game,"Lamp head",p+Vector3(0.95,4.12,0),Vector3(0.38,0.16,0.3),Color(0.75,0.65,0.43),false)
-    _box(game,"Greywood welcome sign",Vector3(-24,2.0,-27),Vector3(3.6,1.1,0.2),Color(0.28,0.34,0.27),false)
-    _box(game,"Camp crate",game.camp_position+Vector3(2.4,0.45,-1.4),Vector3(0.9,0.9,0.9),Color(0.35,0.24,0.15),false)
-    _box(game,"Camp barrel",game.camp_position+Vector3(2.5,0.6,1.2),Vector3(0.7,1.2,0.7),Color(0.24,0.32,0.31),false)
+        _box(game,"Lamp arm",p+Vector3(0.5,4.25,0),Vector3(1.0,0.12,0.12),Color(0.21,0.24,0.22),true)
+        _box(game,"Lamp head",p+Vector3(0.95,4.12,0),Vector3(0.38,0.16,0.3),Color(0.75,0.65,0.43),true)
+    _box(game,"Greywood welcome sign",Vector3(-24,2.0,-27),Vector3(3.6,1.1,0.2),Color(0.28,0.34,0.27),true)
+    _box(game,"Camp crate",game.camp_position+Vector3(2.4,0.45,-1.4),Vector3(0.9,0.9,0.9),Color(0.35,0.24,0.15),true)
+    _box(game,"Camp barrel",game.camp_position+Vector3(2.5,0.6,1.2),Vector3(0.7,1.2,0.7),Color(0.24,0.32,0.31),true)
 
 
 func _bush(pos: Vector3, size: float) -> void:
