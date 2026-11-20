@@ -8,6 +8,7 @@ var attack_timer: float = 0.0
 var attack_pose: float = 0.0
 var animation_clock: float = 0.0
 var animation_parts: Array[Node3D] = []
+var animation_model: Node3D
 var health_root: Node3D
 var health_fill: MeshInstance3D
 
@@ -97,6 +98,9 @@ func _animate_infected() -> void:
     var movement := Vector2(velocity.x, velocity.z).length()
     var gait := sin(animation_clock * 7.0)
     var amount := clampf(movement / maxf(0.1, speed), 0.0, 1.0)
+    if is_instance_valid(animation_model):
+        animation_model.position.y = absf(gait) * 0.04 * amount + sin(animation_clock * 2.1) * 0.014
+        animation_model.rotation.x = 0.04 + absf(gait) * 0.035 * amount
     for i in range(animation_parts.size()):
         var part := animation_parts[i]
         if not is_instance_valid(part):
