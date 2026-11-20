@@ -700,13 +700,7 @@ func player_attack() -> void:
     if expansion and expansion.call("try_attack"):
         return
     if nearest:
-        var weapon_damage := 8.0
-        match player.equipped_weapon:
-            "spear": weapon_damage = 28.0
-            "bow": weapon_damage = 22.0
-            "":
-                if player.equipped_tool == "hatchet": weapon_damage = 16.0
-                elif player.equipped_tool == "crowbar": weapon_damage = 18.0
+        var weapon_damage := _current_weapon_damage()
         nearest.call("take_hit", weapon_damage)
         show_message("Попадание! Урон: %d" % roundi(weapon_damage))
     else:
