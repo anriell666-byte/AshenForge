@@ -135,14 +135,14 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
         if not is_instance_valid(part):
             continue
         var phase := gait if i % 2 == 0 else -gait
+        var goal := phase * 0.62 * swing
         if attack_animation > 0.0 and i == 0:
-            part.rotation.z = lerpf(part.rotation.z, -0.9, 0.45)
-        else:
-            part.rotation.z = phase * 0.52 * swing
-        if is_sneaking and i < 2:
-            part.rotation.z *= 0.35
+            goal = 1.55
+        elif is_sneaking and i < 2:
+            goal *= 0.35
         elif is_sneaking and i >= 2:
-            part.rotation.z += 0.12 if i == 2 else -0.12
+            goal += 0.2 if i == 2 else -0.2
+        part.rotation.x = lerpf(part.rotation.x, goal, 0.4)
 
 func rotate_camera(amount: float) -> void:
     camera_yaw += amount

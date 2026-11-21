@@ -1,4 +1,5 @@
 extends Node
+const CreatorScript = preload("res://scripts/character_creator.gd")
 var game
 var survivor
 
@@ -200,70 +201,8 @@ func _replace_survivor_placeholder() -> void:
     for child in survivor.get_children():
         if child is MeshInstance3D and child.name != "FollowCamera":
             child.visible = false
-    var model := Node3D.new()
-    model.name = "DetailedSurvivor"
-    survivor.add_child(model)
-    var jacket := Color(0.23,0.31,0.26)
-    var dark := Color(0.14,0.19,0.17)
-    var pants := Color(0.18,0.21,0.20)
-    var skin := Color(0.64,0.49,0.37)
-    var canvas := Color(0.37,0.31,0.22)
-    var boots := Color(0.10,0.12,0.12)
-    var metal := Color(0.35,0.39,0.37)
-    _part(model,"Field jacket",CapsuleMesh.new(),Vector3(0,1.06,0),Vector3(0.82,0.92,0.58),jacket)
-    _part(model,"Jacket collar",BoxMesh.new(),Vector3(0,1.48,-0.03),Vector3(0.48,0.14,0.43),dark)
-    _part(model,"Neck",CylinderMesh.new(),Vector3(0,1.57,0),Vector3(0.22,0.18,0.22),skin)
-    _part(model,"Head",SphereMesh.new(),Vector3(0,1.82,0),Vector3(0.48,0.53,0.43),skin)
-    _part(model,"Hair",SphereMesh.new(),Vector3(0,2.02,0.02),Vector3(0.5,0.25,0.46),Color(0.12,0.12,0.10))
-    _part(model,"Face shadow",BoxMesh.new(),Vector3(0,1.78,-0.2),Vector3(0.25,0.05,0.03),Color(0.3,0.22,0.18))
-    _part(model,"Backpack",BoxMesh.new(),Vector3(0,1.13,0.34),Vector3(0.62,0.8,0.32),canvas)
-    _part(model,"Backpack flap",BoxMesh.new(),Vector3(0,1.5,0.52),Vector3(0.52,0.16,0.07),dark)
-    _part(model,"Utility belt",BoxMesh.new(),Vector3(0,0.72,0),Vector3(0.72,0.12,0.48),boots)
-    _part(model,"Buckle",BoxMesh.new(),Vector3(0,0.72,-0.25),Vector3(0.13,0.12,0.04),metal)
-    var limbs: Array[Node3D] = []
-    for x in [-0.42,0.42]:
-        var arm := Node3D.new()
-        arm.name = "ArmPivot"
-        arm.position = Vector3(x,1.38,0)
-        model.add_child(arm)
-        _part(arm,"Sleeve",CapsuleMesh.new(),Vector3(0,-0.25,0),Vector3(0.27,0.7,0.28),jacket)
-        _part(arm,"Elbow patch",BoxMesh.new(),Vector3(0,-0.34,-0.12),Vector3(0.24,0.18,0.07),dark)
-        _part(arm,"Glove",SphereMesh.new(),Vector3(0,-0.59,-0.02),Vector3(0.19,0.2,0.18),boots)
-        limbs.append(arm)
-    for x in [-0.19,0.19]:
-        var leg := Node3D.new()
-        leg.name = "LegPivot"
-        leg.position = Vector3(x,0.68,0)
-        model.add_child(leg)
-        _part(leg,"Cargo trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.32,0.72,0.34),pants)
-        _part(leg,"Knee pad",BoxMesh.new(),Vector3(0,-0.30,-0.17),Vector3(0.24,0.2,0.07),dark)
-        _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.09),Vector3(0.28,0.2,0.44),boots)
-        limbs.append(leg)
-    _part(model,"Radio",BoxMesh.new(),Vector3(-0.34,1.47,-0.18),Vector3(0.16,0.22,0.12),metal)
-    _part(model,"Radio antenna",CylinderMesh.new(),Vector3(-0.36,1.62,-0.18),Vector3(0.025,0.22,0.025),dark)
-    survivor.animation_model = model
-    survivor.animation_parts = limbs
-func _part(parent: Node3D, label: String, mesh: PrimitiveMesh, pos: Vector3, scale_value: Vector3, color: Color) -> void:
-    var node := MeshInstance3D.new()
-    node.name = label
-    node.mesh = mesh
-    node.position = pos
-    node.scale = scale_value
-    var mat := StandardMaterial3D.new()
-    mat.albedo_color = color
-    mat.roughness = 0.9
-    node.material_override = mat
-    parent.add_child(node)
-
-
-func dress_infected(enemies: Array) -> void:
-    for enemy in enemies:
-        if not is_instance_valid(enemy):
-            continue
-        for child in enemy.get_children():
-            if child is MeshInstance3D:
-                child.visible = false
-        _infected_model(enemy)
+    # The look comes from the character creator (saved appearance, or defaults on first launch).
+    CreatorScript.apply_to_player(survivor, CreatorScript.load_saved())
 
 func _add_world_art_pass() -> void:
     _add_rock_cluster(Vector3(-25,0,-17), 1.0)
@@ -384,47 +323,3 @@ func _add_roadside_grass() -> void:
             game.add_child(tuft)
 
 
-func _infected_model(enemy: Node3D) -> void:
-    var model := Node3D.new()
-    model.name = "InfectedRig"
-    enemy.add_child(model)
-    var skin := Color(0.38,0.43,0.31)
-    var rotten := Color(0.24,0.29,0.23)
-    var cloth := Color(0.22,0.25,0.23)
-    var torn := Color(0.36,0.27,0.20)
-    _part(model,"Torn jacket torso",CapsuleMesh.new(),Vector3(0,1.05,0),Vector3(0.72,0.9,0.48),cloth)
-    _part(model,"Hunched shoulders",SphereMesh.new(),Vector3(0,1.42,0.02),Vector3(0.82,0.38,0.48),rotten)
-    _part(model,"Infected head",SphereMesh.new(),Vector3(0,1.78,-0.06),Vector3(0.48,0.48,0.44),skin)
-    _part(model,"Dark hair",SphereMesh.new(),Vector3(0,1.99,0.0),Vector3(0.48,0.20,0.45),Color(0.12,0.13,0.11))
-    _part(model,"Jaw shadow",BoxMesh.new(),Vector3(0,1.63,-0.25),Vector3(0.26,0.10,0.04),rotten)
-    _part(model,"Torn shirt",BoxMesh.new(),Vector3(0,0.92,-0.25),Vector3(0.38,0.46,0.05),torn)
-    var limbs: Array[Node3D] = []
-    for x in [-0.43,0.43]:
-        var arm := Node3D.new()
-        arm.name = "InfectedArmPivot"
-        arm.position = Vector3(x,1.35,-0.02)
-        model.add_child(arm)
-        _part(arm,"Hanging sleeve",CapsuleMesh.new(),Vector3(0,-0.28,0),Vector3(0.25,0.72,0.25),cloth)
-        _part(arm,"Exposed hand",SphereMesh.new(),Vector3(0,-0.67,-0.03),Vector3(0.17,0.20,0.15),skin)
-        _part(arm,"Sleeve tear",BoxMesh.new(),Vector3(0,-0.42,-0.13),Vector3(0.20,0.13,0.05),torn)
-        limbs.append(arm)
-    for x in [-0.2,0.2]:
-        var leg := Node3D.new()
-        leg.name = "InfectedLegPivot"
-        leg.position = Vector3(x,0.68,0)
-        model.add_child(leg)
-        _part(leg,"Worn trousers",CapsuleMesh.new(),Vector3(0,-0.30,0),Vector3(0.29,0.68,0.3),Color(0.19,0.21,0.19))
-        _part(leg,"Boot",BoxMesh.new(),Vector3(0,-0.56,-0.07),Vector3(0.25,0.18,0.36),Color(0.10,0.11,0.10))
-        limbs.append(leg)
-    _part(model,"Left infected eye",SphereMesh.new(),Vector3(-0.13,1.83,-0.275),Vector3(0.052,0.052,0.028),Color(0.68,0.43,0.25))
-    _part(model,"Right infected eye",SphereMesh.new(),Vector3(0.13,1.83,-0.275),Vector3(0.052,0.052,0.028),Color(0.88,0.65,0.31))
-    _part(model,"Sunken mouth",BoxMesh.new(),Vector3(0.0,1.61,-0.285),Vector3(0.22,0.075,0.035),Color(0.10,0.12,0.10))
-    _part(model,"Broken tooth",BoxMesh.new(),Vector3(-0.045,1.60,-0.31),Vector3(0.045,0.045,0.025),Color(0.72,0.69,0.53))
-    _part(model,"Cheek wound",BoxMesh.new(),Vector3(-0.22,1.72,-0.25),Vector3(0.13,0.055,0.035),Color(0.34,0.18,0.14))
-    _part(model,"Exposed ribs",BoxMesh.new(),Vector3(0.12,1.04,-0.245),Vector3(0.24,0.28,0.045),Color(0.42,0.39,0.29))
-    _part(model,"Torn shoulder patch",BoxMesh.new(),Vector3(0.34,1.39,-0.18),Vector3(0.24,0.12,0.06),Color(0.39,0.24,0.17))
-    _part(model,"Belt buckle",BoxMesh.new(),Vector3(0.0,0.68,-0.245),Vector3(0.13,0.11,0.04),Color(0.42,0.38,0.27))
-    _part(model,"Left hand claw",BoxMesh.new(),Vector3(-0.44,0.66,-0.10),Vector3(0.12,0.16,0.12),Color(0.26,0.31,0.23))
-    _part(model,"Right hand claw",BoxMesh.new(),Vector3(0.44,0.66,-0.10),Vector3(0.12,0.16,0.12),Color(0.26,0.31,0.23))
-    enemy.animation_model = model
-    enemy.animation_parts = limbs

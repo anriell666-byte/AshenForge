@@ -6,6 +6,8 @@ const InfectedScript = preload("res://scripts/infected.gd")
 const JoystickScript = preload("res://scripts/touch_joystick.gd")
 const ExpansionScript = preload("res://scripts/expansion.gd")
 const VisualUpgradeScript = preload("res://scripts/visual_upgrade.gd")
+const StageManagerScript = preload("res://scripts/stage_manager.gd")
+const CreatorScript = preload("res://scripts/character_creator.gd")
 const SAVE_PATH := "user://afterfall_save.json"
 
 var player
@@ -38,6 +40,9 @@ var stamina_bar: ProgressBar
 var message_time: float = 0.0
 var camp_position := Vector3(-9, 0, 10)
 var expansion
+var stage_manager
+var character_creator
+var saved_stage: int = 0
 var saved_expansion_state: Dictionary = {}
 
 func _ready() -> void:
@@ -48,10 +53,10 @@ func _ready() -> void:
     visual_upgrade.set_script(VisualUpgradeScript)
     add_child(visual_upgrade)
     visual_upgrade.call("setup", self, player)
-    _build_infected()
-    visual_upgrade.call("dress_infected", infected)
     _build_ui()
     _load_game()
+    _start_stage_manager()
+    _setup_character_creator()
     expansion = Node.new()
     expansion.set_script(ExpansionScript)
     add_child(expansion)
@@ -304,14 +309,35 @@ func _build_player() -> void:
     player.main_game = self
     add_child(player)
 
-func _build_infected() -> void:
-    for p in [Vector3(5,0.2,-15), Vector3(21,0.2,15), Vector3(-20,0.2,22)]:
-        var enemy := CharacterBody3D.new()
-        enemy.set_script(InfectedScript)
-        enemy.position = p
-        add_child(enemy)
-        enemy.set("target", player)
-        infected.append(enemy)
+func _start_stage_manager() -> void:
+    stage_manager = Node.new()
+    stage_manager.name = "StageManager"
+    stage_manager.set_script(StageManagerScript)
+    add_child(stage_manager)
+    stage_manager.call("setup", self, saved_stage)
+
+func _setup_character_creator() -> void:
+    character_creator = CanvasLayer.new()
+    character_creator.set_script(CreatorScript)
+    character_creator.name = "CharacterCreator"
+    add_child(character_creator)
+    character_creator.confirmed.connect(_on_appearance_confirmed)
+    var hud_layer := CanvasLayer.new()
+    hud_layer.layer = 5
+    add_child(hud_layer)
+    var look_button := _make_ui_button(hud_layer, "☺\nВИД", Vector2.ZERO, Vector2(76, 62))
+    look_button.anchor_left = 1.0
+    look_button.anchor_right = 1.0
+    look_button.offset_left = -94.0
+    look_button.offset_right = -18.0
+    look_button.offset_top = 16.0
+    look_button.offset_bottom = 78.0
+    look_button.pressed.connect(func() -> void: character_creator.call("open", CreatorScript.load_saved(), true))
+    if not CreatorScript.has_saved():
+        character_creator.call("open", CreatorScript.load_saved(), false)
+
+func _on_appearance_confirmed(options: Dictionary) -> void:
+    CreatorScript.apply_to_player(player, options)
 
 func _build_ui() -> void:
     var layer := CanvasLayer.new()
@@ -604,11 +630,13 @@ func _take_all_resources() -> void:
     show_message("В рюкзак помещено всё, для чего хватило места.")
 
 func _current_weapon_damage() -> float:
-    if player.equipped_weapon == "spear": return 28.0
-    if player.equipped_weapon == "bow": return 22.0
-    if player.equipped_tool == "hatchet": return 16.0
-    if player.equipped_tool == "crowbar": return 18.0
-    return 8.0
+    var base := 8.0
+    if player.equipped_weapon == "spear": base = 28.0
+    elif player.equipped_weapon == "bow": base = 22.0
+    elif player.equipped_tool == "hatchet": base = 16.0
+    elif player.equipped_tool == "crowbar": base = 18.0
+    # +6% per player level keeps later stages beatable without new gear alone.
+    return base * (1.0 + 0.06 * float(player_level - 1))
 
 func _inventory_weight() -> float:
     var total := 0.0
@@ -844,7 +872,7 @@ func save_game(show_feedback: bool = true) -> void:
         var node: Node3D = drop.get("node")
         if is_instance_valid(node):
             saved_loot.append({"resource": str(drop.get("resource", "scrap")), "amount": int(drop.get("amount", 1)), "position": [node.global_position.x, node.global_position.y, node.global_position.z]})
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "chest": chest_inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw}
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "chest": chest_inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw, "stage": (stage_manager.stage if stage_manager else saved_stage)}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -892,6 +920,7 @@ func _load_game() -> void:
     player.equipped_weapon = str(parsed.get("equipped_weapon", ""))
     player.equipped_tool = str(parsed.get("equipped_tool", ""))
     player.camera_yaw = float(parsed.get("camera_yaw", 0.0))
+    saved_stage = maxi(0, int(parsed.get("stage", 0)))
     var crafted_state = parsed.get("crafted", {})
     if crafted_state is Dictionary: saved_expansion_state = crafted_state
     var saved_ids = parsed.get("salvaged", [])
