@@ -68,6 +68,10 @@ func _ready() -> void:
     follow_camera.rotation_degrees = Vector3(camera_pitch, 0.0, 0.0)
     follow_camera.current = true
     follow_camera.fov = 52.0
+    # Default near/far (0.05/4000) leaves too little depth precision on phones: coplanar
+    # surfaces (roads, markings, wall overlaps) flicker. Tighter planes fix it.
+    follow_camera.near = 0.4
+    follow_camera.far = 140.0
 
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)

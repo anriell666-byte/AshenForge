@@ -8,6 +8,7 @@ const ExpansionScript = preload("res://scripts/expansion.gd")
 const VisualUpgradeScript = preload("res://scripts/visual_upgrade.gd")
 const StageManagerScript = preload("res://scripts/stage_manager.gd")
 const CreatorScript = preload("res://scripts/character_creator.gd")
+const EnvArt = preload("res://scripts/environment_art.gd")
 const SAVE_PATH := "user://afterfall_save.json"
 
 var player
@@ -107,11 +108,13 @@ func _build_world() -> void:
     sun.shadow_enabled = true
     add_child(sun)
     _box(self, "Ground", Vector3(0, -0.35, 0), Vector3(64, 0.6, 64), Color(0.28, 0.34, 0.27), true)
-    _box(self, "Main road", Vector3(0, -0.02, 0), Vector3(9, 0.08, 64), Color(0.18, 0.2, 0.19), false)
-    _box(self, "Cross road", Vector3(0, 0.025, -5), Vector3(64, 0.08, 7), Color(0.2, 0.22, 0.2), false)
+    _box(self, "Main road", Vector3(0, -0.02, 0), Vector3(9, 0.08, 63.8), Color(0.18, 0.2, 0.19), false)
+    _box(self, "Cross road", Vector3(0, 0.025, -5), Vector3(63.8, 0.08, 7), Color(0.2, 0.22, 0.2), false)
     for i in range(9):
         var z := -28.0 + float(i) * 7.0
-        _box(self, "Road marking", Vector3(0, 0.08, z), Vector3(0.18, 0.025, 3.0), Color(0.72, 0.68, 0.52), false)
+        if z > -10.5 and z < -0.5:
+            continue  # junction: markings would float a hair above the cross road
+        _box(self, "Road marking", Vector3(0, 0.05, z), Vector3(0.18, 0.025, 3.0), Color(0.72, 0.68, 0.52), false)
     _build_house("House A", Vector3(-17, 0, -17), Color(0.54, 0.43, 0.34))
     _build_house("House B", Vector3(17, 0, -17), Color(0.43, 0.49, 0.46))
     _build_house("House C", Vector3(-18, 0, 12), Color(0.55, 0.5, 0.39))
@@ -177,7 +180,7 @@ func _build_gas_station(pos: Vector3) -> void:
     _make_prop("Fuel pump", "scrap", 4, 3, pos + Vector3(0, 0.8, 0), Vector3(0.9, 1.6, 0.8), Color(0.55, 0.27, 0.19))
 
 func _build_camp() -> void:
-    _box(self, "Camp tarp", camp_position + Vector3(0, 2.4, 0), Vector3(5.5, 0.25, 4.5), Color(0.32, 0.38, 0.3), false)
+    _box(self, "Camp tarp", camp_position + Vector3(-1.1, 2.4, 0), Vector3(3.2, 0.25, 4.5), Color(0.32, 0.38, 0.3), false)
     _box(self, "Camp bed", camp_position + Vector3(-1.4, 0.35, 0), Vector3(1.1, 0.35, 2.2), Color(0.37, 0.28, 0.2), true)
     var fire := MeshInstance3D.new()
     var sphere := SphereMesh.new()
@@ -198,7 +201,9 @@ func _build_camp() -> void:
     fire_mat.emission = Color(1.0, 0.16, 0.025)
     fire_mat.emission_energy_multiplier = 1.8
     fire.material_override = fire_mat
+    fire.mesh = null  # the visible fire is the low-poly campfire below
     add_child(fire)
+    EnvArt.campfire(self, camp_position + Vector3(1.1, 0.0, 0.3))
     var fire_blocker := StaticBody3D.new()
     fire_blocker.position = fire.position
     var fire_collision := CollisionShape3D.new()
@@ -209,41 +214,7 @@ func _build_camp() -> void:
     add_child(fire_blocker)
 
 func _scatter_trees() -> void:
-    var positions := [Vector3(-27,0,-25),Vector3(-27,0,-10),Vector3(-28,0,8),Vector3(-27,0,25),Vector3(28,0,-26),Vector3(28,0,-8),Vector3(28,0,10),Vector3(27,0,27),Vector3(-8,0,-28),Vector3(9,0,-29)]
-    var foliage := [Color(0.16,0.28,0.19),Color(0.20,0.33,0.22),Color(0.25,0.35,0.22),Color(0.13,0.24,0.18)]
-    for tree_index in range(positions.size()):
-        var p: Vector3 = positions[tree_index]
-        _box(self, "Tree trunk", p + Vector3(0, 1.1, 0), Vector3(0.7, 2.2, 0.7), Color(0.25, 0.18, 0.13), true)
-        for branch_index in range(3):
-            var branch := MeshInstance3D.new()
-            var branch_mesh := CylinderMesh.new()
-            branch_mesh.top_radius = 0.08
-            branch_mesh.bottom_radius = 0.16
-            branch_mesh.height = 1.45
-            branch.mesh = branch_mesh
-            branch.position = p + Vector3((float(branch_index)-1.0)*0.48, 2.05 + float(branch_index%2)*0.35, 0.0)
-            branch.rotation_degrees.z = -28.0 + float(branch_index)*24.0
-            var branch_mat := StandardMaterial3D.new()
-            branch_mat.albedo_color = Color(0.24, 0.17, 0.12)
-            branch_mat.roughness = 1.0
-            branch.material_override = branch_mat
-            add_child(branch)
-        for crown_index in range(6):
-            var crown := MeshInstance3D.new()
-            var sphere := SphereMesh.new()
-            sphere.radius = 1.25 if crown_index == 0 else 1.0
-            sphere.height = 2.35 if crown_index == 0 else 1.9
-            crown.mesh = sphere
-            var angle := float(crown_index) * TAU / 5.0
-            crown.position = p + Vector3(cos(angle)*0.72, 3.05 + (0.28 if crown_index%2 == 0 else -0.08), sin(angle)*0.72)
-            crown.scale = Vector3(1.0 + float((tree_index+crown_index)%3)*0.08, 1.0, 1.0)
-            var mat := StandardMaterial3D.new()
-            mat.albedo_color = foliage[(tree_index+crown_index)%foliage.size()]
-            mat.roughness = 1.0
-            crown.material_override = mat
-            add_child(crown)
-        for scar in range(3):
-            _box(self, "Bark scar", p + Vector3(0.0, 0.55 + float(scar)*0.48, -0.356), Vector3(0.12, 0.055, 0.018), Color(0.39, 0.28, 0.19), false)
+    EnvArt.scatter_trees(self)
 
 func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color: Color, solid: bool) -> Node3D:
     if solid:

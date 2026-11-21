@@ -1,5 +1,6 @@
 extends Node
 const CreatorScript = preload("res://scripts/character_creator.gd")
+const EnvArt = preload("res://scripts/environment_art.gd")
 var game
 var survivor
 
@@ -10,6 +11,7 @@ func setup(owner, player_node) -> void:
     _add_building_detail_pass()
     _dress_greywood()
     _add_world_art_pass()
+    EnvArt.populate(game)
     _replace_survivor_placeholder()
 
 func _repair_building_shells() -> void:
@@ -175,28 +177,8 @@ func _dress_greywood() -> void:
 
 
 func _bush(pos: Vector3, size: float) -> void:
-    var blocker := StaticBody3D.new()
-    blocker.position = pos
-    var collision := CollisionShape3D.new()
-    var shape := SphereShape3D.new()
-    shape.radius = 0.62 * size
-    collision.shape = shape
-    collision.position.y = 0.42 * size
-    blocker.add_child(collision)
-    game.add_child(blocker)
-    var shades := [Color(0.16,0.27,0.18),Color(0.22,0.33,0.21),Color(0.27,0.34,0.22),Color(0.14,0.23,0.16)]
-    for i in range(4):
-        var leaf := MeshInstance3D.new()
-        var mesh := SphereMesh.new()
-        mesh.radius = size*0.48
-        mesh.height = size*0.72
-        leaf.mesh = mesh
-        leaf.position = pos+Vector3(cos(float(i)*1.57)*size*0.3,size*0.34,sin(float(i)*1.57)*size*0.3)
-        var mat := StandardMaterial3D.new()
-        mat.albedo_color = shades[i]
-        mat.roughness = 1.0
-        leaf.material_override = mat
-        game.add_child(leaf)
+    EnvArt.bush(game, pos, size)
+
 func _replace_survivor_placeholder() -> void:
     for child in survivor.get_children():
         if child is MeshInstance3D and child.name != "FollowCamera":
@@ -224,28 +206,7 @@ func _add_world_art_pass() -> void:
 
 
 func _add_rock_cluster(origin: Vector3, scale_value: float) -> void:
-    var colors := [Color(0.30,0.32,0.29),Color(0.38,0.38,0.33),Color(0.25,0.28,0.27)]
-    for i in range(5):
-        var rock_body := StaticBody3D.new()
-        rock_body.position = origin + Vector3(float(i%3)*0.62-0.55,0.22*scale_value,float(i/3)*0.62-0.3)
-        var collision := CollisionShape3D.new()
-        var shape := SphereShape3D.new()
-        shape.radius = 0.48 * scale_value
-        collision.shape = shape
-        collision.position.y = 0.18 * scale_value
-        rock_body.add_child(collision)
-        var rock := MeshInstance3D.new()
-        var mesh := SphereMesh.new()
-        mesh.radius = 0.55
-        mesh.height = 0.75
-        rock.mesh = mesh
-        rock.scale = Vector3(1.0+float(i%2)*0.35,0.65,0.85)*scale_value
-        var mat := StandardMaterial3D.new()
-        mat.albedo_color = colors[i%colors.size()]
-        mat.roughness = 1.0
-        rock.material_override = mat
-        rock_body.add_child(rock)
-        game.add_child(rock_body)
+    EnvArt.rock_cluster(game, origin, scale_value)
 
 func _add_vehicle(origin: Vector3, yaw: float, paint: Color) -> void:
     var car := Node3D.new()
@@ -287,9 +248,7 @@ func _add_fence_line(origin: Vector3, count: int, direction: Vector3) -> void:
             _box(game,"Fence rail",p+direction*0.85+Vector3(0,0.95,0),Vector3(0.12,0.12,1.7),Color(0.34,0.27,0.19),true)
 
 func _add_dead_tree(pos: Vector3, size: float) -> void:
-    _box(game,"Dead tree trunk",pos+Vector3(0,1.35*size,0),Vector3(0.42*size,2.7*size,0.42*size),Color(0.23,0.19,0.15),true)
-    _box(game,"Dead branch",pos+Vector3(0.55*size,2.15*size,0),Vector3(1.35*size,0.16*size,0.16*size),Color(0.23,0.19,0.15),true)
-    _box(game,"Dead branch",pos+Vector3(-0.42*size,2.35*size,0),Vector3(1.0*size,0.14*size,0.14*size),Color(0.25,0.20,0.16),true)
+    EnvArt.dead_tree(game, pos, size)
 
 func _add_signpost(pos: Vector3) -> void:
     _box(game,"Road sign pole",pos+Vector3(0,1.1,0),Vector3(0.12,2.2,0.12),Color(0.24,0.23,0.19),true)
@@ -303,23 +262,5 @@ func _add_debris_pile(pos: Vector3) -> void:
         var p := pos+Vector3(float(i%3)*0.42-0.4,0.12+float(i%2)*0.08,float(i/3)*0.42-0.2)
         _box(game,"Debris collision",p,dims,colors[i%colors.size()],true)
 func _add_roadside_grass() -> void:
-    var grass_colors := [Color(0.25,0.34,0.20),Color(0.33,0.39,0.23),Color(0.19,0.29,0.18)]
-    for i in range(34):
-        var x := -30.0 + float((i*17)%60)
-        var z := -30.0 + float((i*23)%60)
-        if absf(x) < 6.0 or absf(z+5.0) < 4.0:
-            continue
-        for blade in range(3):
-            var tuft := MeshInstance3D.new()
-            var mesh := BoxMesh.new()
-            mesh.size = Vector3(0.07,0.42+float(blade%2)*0.12,0.07)
-            tuft.mesh = mesh
-            tuft.position = Vector3(x+float(blade)*0.12,0.22,z+float(blade%2)*0.1)
-            tuft.rotation.z = -0.18+float(blade)*0.16
-            var mat := StandardMaterial3D.new()
-            mat.albedo_color = grass_colors[(i+blade)%grass_colors.size()]
-            mat.roughness = 1.0
-            tuft.material_override = mat
-            game.add_child(tuft)
-
+    pass  # grass and flowers are MultiMesh batches in environment_art.gd
 
