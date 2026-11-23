@@ -388,7 +388,7 @@ func nearest_note(pos: Vector3, radius: float = 2.4) -> Dictionary:
             best = entry
     return best
 
-## E pressed: read the closest note.
+## Action button: read the closest note.
 func try_interact() -> bool:
     var entry := nearest_note(game.player.global_position)
     if entry.is_empty():

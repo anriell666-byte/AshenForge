@@ -220,7 +220,7 @@ func _build_quests() -> void:
     var active: Array = quests.active_ids()
     if active.is_empty():
         var box := _card("Нет активных заданий", Color(0.4, 0.5, 0.42))
-        _text(box, "Читай записки и дневники в домах, лагерях и зданиях районов: клавиша E (кнопка СБОР) рядом с бумагой. Новые задания открывают закрытые районы.")
+        _text(box, "Читай записки и дневники в домах, лагерях и зданиях районов: кнопка ЧИТАТЬ рядом с бумагой. Новые задания открывают закрытые районы.")
     for id in active:
         var q: Dictionary = WD.QUESTS[id]
         var box := _card(String(q["title"]), Color(0.82, 0.62, 0.3))

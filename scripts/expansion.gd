@@ -79,19 +79,6 @@ func _make_animal(label: String, pos: Vector3, tint: Color, speed: float, hp: in
     animals.append(animal)
     animal_data[animal.get_instance_id()] = {"hp":hp,"meat":meat,"speed":speed,"timer":1.0,"direction":Vector3.RIGHT}
 func _add_controls() -> void:
-    var layers: Array[Node] = game.find_children("*", "CanvasLayer", true, false)
-    if layers.is_empty(): return
-    var layer := layers[0] as CanvasLayer
-    var left: Button = game._make_ui_button(layer,"⟲",Vector2.ZERO,Vector2(58,52))
-    game._place_bottom_right(left,300,24)
-    left.pressed.connect(func(): game.player.rotate_camera(-PI/4.0))
-    var right: Button = game._make_ui_button(layer,"⟳",Vector2.ZERO,Vector2(58,52))
-    game._place_bottom_right(right,364,24)
-    right.pressed.connect(func(): game.player.rotate_camera(PI/4.0))
-    var sneak: Button = game._make_ui_button(layer,"SNEAK",Vector2.ZERO,Vector2(92,48))
-    game._place_bottom_right(sneak,300,88)
-    sneak.toggle_mode = true
-    sneak.toggled.connect(_toggle_stealth)
     _refresh_status()
 func _recipe_button(parent: Node, label: String, id: String, cost: Dictionary, note: String) -> void:
     var b: Button = game._make_ui_button(parent,label+"  ["+_cost_text(cost)+"]",Vector2.ZERO,Vector2.ZERO)

@@ -55,6 +55,8 @@ var world
 var journal
 var tracker_label: Label
 var hud_canvas: CanvasLayer
+var action_button: Button
+var attack_held := false
 var weapon_button: Button
 var heal_button: Button
 var tool_button: Button
@@ -88,6 +90,8 @@ func _process(delta: float) -> void:
         message_label.text = ""
     _refresh_context_hint()
     _refresh_tracker()
+    if attack_held and player:
+        player.call("perform_attack")
 
 func _setup_input() -> void:
     _add_key("move_forward", KEY_W)
@@ -368,20 +372,15 @@ func _add_progression_ui() -> void:
     tracker_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
     tracker_label.add_theme_constant_override("outline_size", 5)
     layer.add_child(tracker_label)
-    var top_buttons := [["⚒\nКРАФТ", 340.0, func() -> void: crafting.call("open")],
-        ["☰\nЖУРНАЛ", 258.0, func() -> void: journal.call("open_journal", "quests")],
-        ["⌖\nКАРТА", 176.0, func() -> void: journal.call("open_journal", "map")]]
+    var top_buttons := [["⌖\nКАРТА", 1, func() -> void: journal.call("open_journal", "map")],
+        ["☰\nЖУРНАЛ", 2, func() -> void: journal.call("open_journal", "quests")],
+        ["⚒\nКРАФТ", 3, func() -> void: crafting.call("open")]]
     for entry in top_buttons:
         var b := _make_ui_button(layer, String(entry[0]), Vector2.ZERO, Vector2(76, 62))
-        b.anchor_left = 1.0
-        b.anchor_right = 1.0
-        b.offset_left = -float(entry[1])
-        b.offset_right = -float(entry[1]) + 76.0
-        b.offset_top = 16.0
-        b.offset_bottom = 78.0
+        _place_top_right(b, int(entry[1]))
         b.pressed.connect(entry[2])
     weapon_button = _make_ui_button(layer, "⚔\nКулаки", Vector2.ZERO, Vector2(84, 62))
-    _place_bottom_right(weapon_button, 440.0, 18.0)
+    _place_bottom_right(weapon_button, 372.0, 112.0)
     weapon_button.pressed.connect(func() -> void:
         var id: String = progress.cycle("weapon")
         if id == "":
@@ -389,10 +388,10 @@ func _add_progression_ui() -> void:
         else:
             show_message("В руках: %s" % String(ID.item(id)["name"])))
     heal_button = _make_ui_button(layer, "✚\nЛЕЧЕНИЕ", Vector2.ZERO, Vector2(84, 62))
-    _place_bottom_right(heal_button, 534.0, 18.0)
+    _place_bottom_right(heal_button, 466.0, 112.0)
     heal_button.pressed.connect(func() -> void: progress.use_best_consumable())
     tool_button = _make_ui_button(layer, "⛏\nИнстр.", Vector2.ZERO, Vector2(84, 62))
-    _place_bottom_right(tool_button, 628.0, 18.0)
+    _place_bottom_right(tool_button, 560.0, 30.0)
     tool_button.pressed.connect(func() -> void:
         var id: String = progress.cycle("tool")
         if id == "":
@@ -474,8 +473,9 @@ func _build_ui() -> void:
     stamina_bar.show_percentage = false
     vbox.add_child(stamina_bar)
     message_label = Label.new()
-    message_label.position = Vector2(350, 22)
-    message_label.size = Vector2(580, 40)
+    message_label.position = Vector2(330, 22)
+    message_label.size = Vector2(440, 56)
+    message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     message_label.add_theme_font_size_override("font_size", 19)
     layer.add_child(message_label)
@@ -491,55 +491,64 @@ func _build_ui() -> void:
     layer.add_child(context_label)
     joystick = Control.new()
     joystick.set_script(JoystickScript)
-    joystick.size = Vector2(176, 176)
+    joystick.size = Vector2(210, 210)
     joystick.anchor_left = 0.0
     joystick.anchor_right = 0.0
     joystick.anchor_top = 1.0
     joystick.anchor_bottom = 1.0
-    joystick.offset_left = 22.0
-    joystick.offset_right = 198.0
-    joystick.offset_top = -194.0
-    joystick.offset_bottom = -18.0
-    joystick.active_radius = 60.0
-    joystick.display_label = "MOVE"
+    joystick.offset_left = 20.0
+    joystick.offset_right = 230.0
+    joystick.offset_top = -230.0
+    joystick.offset_bottom = -20.0
+    joystick.active_radius = 76.0
+    joystick.display_label = "ДВИЖЕНИЕ"
     layer.add_child(joystick)
     joystick.vector_changed.connect(_on_joystick_changed)
 
     camera_joystick = Control.new()
     camera_joystick.set_script(JoystickScript)
-    camera_joystick.size = Vector2(144, 144)
+    camera_joystick.size = Vector2(210, 210)
     camera_joystick.anchor_left = 1.0
     camera_joystick.anchor_right = 1.0
     camera_joystick.anchor_top = 1.0
     camera_joystick.anchor_bottom = 1.0
-    camera_joystick.offset_left = -166.0
-    camera_joystick.offset_right = -22.0
-    camera_joystick.offset_top = -326.0
-    camera_joystick.offset_bottom = -182.0
-    camera_joystick.active_radius = 48.0
-    camera_joystick.display_label = "LOOK"
+    camera_joystick.offset_left = -230.0
+    camera_joystick.offset_right = -20.0
+    camera_joystick.offset_top = -230.0
+    camera_joystick.offset_bottom = -20.0
+    camera_joystick.active_radius = 76.0
+    camera_joystick.display_label = "КАМЕРА"
     layer.add_child(camera_joystick)
     camera_joystick.vector_changed.connect(_on_camera_joystick_changed)
 
-    var attack_button := _make_ui_button(layer, "⚔\nАТАКА", Vector2.ZERO, Vector2(84, 76))
-    _place_bottom_right(attack_button, 16.0, 18.0)
-    attack_button.pressed.connect(func(): player.call("perform_attack"))
-    var action_button := _make_ui_button(layer, "E\nСБОР", Vector2.ZERO, Vector2(84, 76))
-    _place_bottom_right(action_button, 108.0, 18.0)
+    # Thumb cluster to the left of the camera stick: big attack button with the
+    # context action above it, and a row of secondary buttons.
+    var attack_button := _make_ui_button(layer, "⚔\nАТАКА", Vector2.ZERO, Vector2(116, 116))
+    attack_button.add_theme_font_size_override("font_size", 19)
+    _place_bottom_right(attack_button, 246.0, 30.0)
+    attack_button.button_down.connect(func() -> void:
+        attack_held = true
+        player.call("perform_attack"))
+    attack_button.button_up.connect(func() -> void: attack_held = false)
+    action_button = _make_ui_button(layer, "ДЕЙСТВИЕ", Vector2.ZERO, Vector2(116, 84))
+    action_button.add_theme_font_size_override("font_size", 16)
+    _place_bottom_right(action_button, 246.0, 156.0)
     action_button.pressed.connect(interact)
-    var save_button := _make_ui_button(layer, "▣\nСЕЙВ", Vector2.ZERO, Vector2(72, 76))
-    _place_bottom_right(save_button, 200.0, 18.0)
-    save_button.pressed.connect(save_game)
-    var sneak_button := _make_ui_button(layer, "C\nТИШЕ", Vector2.ZERO, Vector2(72, 62))
-    _place_bottom_right(sneak_button, 16.0, 102.0)
-    sneak_button.pressed.connect(func(): player.set("is_sneaking", not bool(player.get("is_sneaking"))))
-    var run_button := _make_ui_button(layer, "⇧\nБЕГ", Vector2.ZERO, Vector2(72, 62))
-    _place_bottom_right(run_button, 96.0, 102.0)
+    var run_button := _make_ui_button(layer, "⇧\nБЕГ", Vector2.ZERO, Vector2(84, 72))
+    _place_bottom_right(run_button, 372.0, 30.0)
     run_button.button_down.connect(_set_touch_sprint.bind(true))
     run_button.button_up.connect(_set_touch_sprint.bind(false))
-    var bag_button := _make_ui_button(layer, "▤\nРЮКЗАК", Vector2.ZERO, Vector2(76, 62))
-    _place_bottom_right(bag_button, 176.0, 102.0)
-    bag_button.pressed.connect(toggle_inventory)
+    var sneak_button := _make_ui_button(layer, "▼\nТИШЕ", Vector2.ZERO, Vector2(84, 72))
+    sneak_button.toggle_mode = true
+    _place_bottom_right(sneak_button, 466.0, 30.0)
+    sneak_button.toggled.connect(func(on: bool) -> void:
+        player.set("is_sneaking", on)
+        show_message("Крадёшься: враги замечают хуже" if on else "Обычный шаг"))
+    var top_extra := [["▤\nРЮКЗАК", 4, toggle_inventory], ["▣\nСЕЙВ", 5, save_game]]
+    for entry in top_extra:
+        var tb := _make_ui_button(layer, String(entry[0]), Vector2.ZERO, Vector2(76, 62))
+        _place_top_right(tb, int(entry[1]))
+        tb.pressed.connect(entry[2])
     _build_inventory_panel(layer)
     _build_chest_panel(layer)
 
@@ -581,6 +590,15 @@ func _make_ui_button(parent: Node, label: String, pos: Vector2, dimensions: Vect
     button.add_theme_stylebox_override("disabled", disabled)
     parent.add_child(button)
     return button
+
+## Slot 0 is the rightmost top button (VIEW); each next slot sits 82 px to its left.
+func _place_top_right(button: Control, slot: int) -> void:
+    button.anchor_left = 1.0
+    button.anchor_right = 1.0
+    button.offset_left = -(18.0 + float(slot + 1) * 82.0 - 6.0)
+    button.offset_right = button.offset_left + 76.0
+    button.offset_top = 16.0
+    button.offset_bottom = 78.0
 
 func _place_bottom_right(button: Control, right_margin: float, bottom_margin: float) -> void:
     button.anchor_left = 1.0
@@ -805,7 +823,7 @@ func _refresh_context_hint() -> void:
                 enemy_distance = current_enemy_distance
                 nearest_enemy = enemy
     if nearest_enemy:
-        context_label.text = "ATTACK — ударить: %s" % String(nearest_enemy.get("display_name"))
+        _set_hint("Враг: %s" % String(nearest_enemy.get("display_name")), "ДЕЙСТВИЕ")
         return
     var nearest_drop: Dictionary = {}
     var drop_distance := 2.2
@@ -817,7 +835,7 @@ func _refresh_context_hint() -> void:
                 drop_distance = distance
                 nearest_drop = drop
     if not nearest_drop.is_empty():
-        context_label.text = "E / ACTION — подобрать: %s ×%d" % [String(ID.RES_LABELS.get(str(nearest_drop.resource), str(nearest_drop.resource))), int(nearest_drop.amount)]
+        _set_hint("Подобрать: %s ×%d" % [String(ID.RES_LABELS.get(str(nearest_drop.resource), str(nearest_drop.resource))), int(nearest_drop.amount)], "ВЗЯТЬ")
         return
     var nearest_prop: Node = null
     var prop_distance := 3.2
@@ -828,17 +846,23 @@ func _refresh_context_hint() -> void:
                 prop_distance = distance
                 nearest_prop = prop
     if nearest_prop:
-        context_label.text = "E / ACTION — разобрать: %s" % nearest_prop.object_name
+        _set_hint("Разобрать: %s" % nearest_prop.object_name, "РАЗОБРАТЬ")
     elif world and not world.call("nearest_note", player.global_position).is_empty():
-        context_label.text = "E / ACTION — прочитать: %s" % String(world.call("nearest_note", player.global_position)["data"]["title"])
+        _set_hint("Прочитать: %s" % String(world.call("nearest_note", player.global_position)["data"]["title"]), "ЧИТАТЬ")
     elif player.global_position.distance_to(workbench_position) < 3.0:
-        context_label.text = "E / ACTION — верстак: создать и починить"
+        _set_hint("Верстак: создать и починить", "ВЕРСТАК")
     elif player.global_position.distance_to(camp_chest_position) < 2.1:
-        context_label.text = "E / ACTION — открыть лагерный сундук"
+        _set_hint("Лагерный сундук", "СУНДУК")
     elif player.global_position.distance_to(camp_position) < 3.5:
-        context_label.text = "E / ACTION — отдохнуть у костра"
+        _set_hint("Отдохнуть у костра", "ОТДЫХ")
     else:
-        context_label.text = ""
+        _set_hint("", "ДЕЙСТВИЕ")
+
+func _set_hint(text: String, action: String) -> void:
+    context_label.text = text
+    if action_button:
+        action_button.text = action
+        action_button.modulate = Color(1, 1, 1, 1.0 if text != "" else 0.55)
 
 func spawn_loot(resource: String, amount: int, world_position: Vector3) -> void:
     var drop := Node3D.new()
