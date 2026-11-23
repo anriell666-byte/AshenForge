@@ -1,4 +1,5 @@
 extends StaticBody3D
+const ID = preload("res://scripts/items_data.gd")
 
 var object_name: String = "Debris"
 var material_id: String = "scrap"
@@ -17,9 +18,10 @@ func setup(label: String, resource: String, amount: int, hits: float, game) -> v
 
 func damage_object() -> void:
     var damage := 1.0
-    if is_instance_valid(main_game) and is_instance_valid(main_game.player):
-        if main_game.player.equipped_tool == "hatchet": damage = 2.5
-        elif main_game.player.equipped_tool == "crowbar": damage = 3.0
+    if is_instance_valid(main_game) and main_game.get("progress") != null:
+        var progress = main_game.get("progress")
+        damage = float(progress.call("harvest_power", material_id))
+        progress.call("wear_for_harvest")
     durability -= damage
     if main_game:
         main_game.call("show_message", "%s: %d/%d" % [object_name, maxi(0, int(durability)), int(max_durability)])
@@ -27,5 +29,5 @@ func damage_object() -> void:
         if main_game:
             main_game.call("spawn_loot", material_id, yield_amount, global_position)
             main_game.call("mark_salvaged", self)
-            main_game.call("show_message", "+%d %s" % [yield_amount, material_id.capitalize()])
+            main_game.call("show_message", "+%d %s" % [yield_amount, String(ID.RES_LABELS.get(material_id, material_id))])
         queue_free()

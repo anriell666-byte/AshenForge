@@ -6,7 +6,13 @@ const InfectedScript = preload("res://scripts/infected.gd")
 const JoystickScript = preload("res://scripts/touch_joystick.gd")
 const ExpansionScript = preload("res://scripts/expansion.gd")
 const VisualUpgradeScript = preload("res://scripts/visual_upgrade.gd")
-const StageManagerScript = preload("res://scripts/stage_manager.gd")
+const ProgressScript = preload("res://scripts/progress.gd")
+const CraftingScript = preload("res://scripts/crafting_ui.gd")
+const QuestsScript = preload("res://scripts/quests.gd")
+const WorldScript = preload("res://scripts/world_manager.gd")
+const JournalScript = preload("res://scripts/journal_ui.gd")
+const ID = preload("res://scripts/items_data.gd")
+const LPoly = preload("res://scripts/lowpoly.gd")
 const CreatorScript = preload("res://scripts/character_creator.gd")
 const EnvArt = preload("res://scripts/environment_art.gd")
 const SAVE_PATH := "user://afterfall_save.json"
@@ -17,13 +23,13 @@ var camera_joystick: Control
 var props: Array = []
 var loot_drops: Array[Dictionary] = []
 var infected: Array = []
-var inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0}
-var chest_inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0}
+var inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0, "stone": 0, "fuel": 0, "essence": 0, "seal": 0}
+var chest_inventory := {"wood": 0, "scrap": 0, "plastic": 0, "cloth": 0, "food": 0, "medicine": 0, "stone": 0, "fuel": 0, "essence": 0, "seal": 0}
 var camp_chest_position := Vector3(-12.0, 0.0, 10.8)
 var chest_panel: PanelContainer
 var chest_label: Label
 var chest_value_labels: Dictionary = {}
-var resource_weights := {"wood": 0.8, "scrap": 1.2, "plastic": 0.25, "cloth": 0.15, "food": 0.35, "medicine": 0.1}
+var resource_weights := {"wood": 0.8, "scrap": 1.2, "plastic": 0.25, "cloth": 0.15, "food": 0.35, "medicine": 0.1, "stone": 1.0, "fuel": 0.6, "essence": 0.1, "seal": 0.1}
 var carry_capacity: float = 35.0
 var player_xp: int = 0
 var player_level: int = 1
@@ -41,9 +47,18 @@ var stamina_bar: ProgressBar
 var message_time: float = 0.0
 var camp_position := Vector3(-9, 0, 10)
 var expansion
-var stage_manager
 var character_creator
-var saved_stage: int = 0
+var progress
+var crafting
+var quests
+var world
+var journal
+var tracker_label: Label
+var hud_canvas: CanvasLayer
+var weapon_button: Button
+var heal_button: Button
+var tool_button: Button
+var workbench_position := Vector3(-4.8, 0.0, 12.8)
 var saved_expansion_state: Dictionary = {}
 
 func _ready() -> void:
@@ -56,20 +71,23 @@ func _ready() -> void:
     visual_upgrade.call("setup", self, player)
     _build_ui()
     _load_game()
-    _start_stage_manager()
+    _setup_progression()
     _setup_character_creator()
     expansion = Node.new()
     expansion.set_script(ExpansionScript)
     add_child(expansion)
     expansion.call("setup", self)
+    _build_workbench()
+    _add_progression_ui()
     refresh_hud()
-    show_message("GREYWOOD — Найди припасы и вернись к лагерю")
+    show_message("Грейвуд — найди припасы, читай записки и возвращайся к лагерю")
 
 func _process(delta: float) -> void:
     message_time = maxf(0.0, message_time - delta)
     if message_time <= 0.0 and message_label:
         message_label.text = ""
     _refresh_context_hint()
+    _refresh_tracker()
 
 func _setup_input() -> void:
     _add_key("move_forward", KEY_W)
@@ -252,6 +270,9 @@ func _box(parent: Node, label: String, pos: Vector3, dimensions: Vector3, color:
     return visual
 
 func _make_prop(label: String, resource: String, amount: int, hits: float, pos: Vector3, dimensions: Vector3, color: Color) -> void:
+    var salvage_key := "%s@%d,%d,%d" % [label, roundi(pos.x), roundi(pos.y), roundi(pos.z)]
+    if salvaged_ids.has(salvage_key):
+        return
     var body := StaticBody3D.new()
     body.set_script(PropScript)
     body.position = pos
@@ -280,12 +301,133 @@ func _build_player() -> void:
     player.main_game = self
     add_child(player)
 
-func _start_stage_manager() -> void:
-    stage_manager = Node.new()
-    stage_manager.name = "StageManager"
-    stage_manager.set_script(StageManagerScript)
-    add_child(stage_manager)
-    stage_manager.call("setup", self, saved_stage)
+func _setup_progression() -> void:
+    progress = Node.new()
+    progress.name = "Progress"
+    progress.set_script(ProgressScript)
+    add_child(progress)
+    progress.call("setup", self)
+    quests = Node.new()
+    quests.name = "Quests"
+    quests.set_script(QuestsScript)
+    add_child(quests)
+    world = Node.new()
+    world.name = "World"
+    world.set_script(WorldScript)
+    add_child(world)
+    journal = CanvasLayer.new()
+    journal.name = "Journal"
+    journal.set_script(JournalScript)
+    add_child(journal)
+    quests.call("setup", self, progress, world)
+    journal.call("setup", self, progress, quests, world)
+    world.call("setup", self, progress, quests)
+    crafting = CanvasLayer.new()
+    crafting.name = "Workbench"
+    crafting.set_script(CraftingScript)
+    add_child(crafting)
+    crafting.call("setup", self, progress)
+    progress.changed.connect(_on_progress_changed)
+
+func _build_workbench() -> void:
+    var root := Node3D.new()
+    root.name = "Workbench model"
+    root.position = workbench_position
+    add_child(root)
+    var b := LPoly.new()
+    b.jitter = 0.05
+    var wood := Color(0.40, 0.28, 0.17)
+    b.box(Vector3(0, 0.95, 0), Vector3(2.4, 0.18, 1.1), wood.lightened(0.06))
+    for sx in [-1.0, 1.0]:
+        for sz in [-0.4, 0.4]:
+            b.box(Vector3(sx, 0.46, sz), Vector3(0.14, 0.92, 0.14), wood.darkened(0.2))
+    b.box(Vector3(0, 0.3, 0), Vector3(2.0, 0.08, 0.9), wood.darkened(0.1))
+    b.box(Vector3(0, 1.7, -0.5), Vector3(2.4, 1.1, 0.08), Color(0.28, 0.26, 0.24))    # tool board
+    for i in range(4):
+        b.box(Vector3(-0.8 + float(i) * 0.55, 1.7, -0.44), Vector3(0.08, 0.7, 0.05), Color(0.62, 0.62, 0.58))
+    b.frustum(Vector3(0.7, 1.04, 0.1), 0.28, 0.22, 0.12, 0.3, 0.14, 5, Color(0.30, 0.31, 0.34))   # little anvil
+    b.box(Vector3(-0.6, 1.1, 0.1), Vector3(0.7, 0.06, 0.4), Color(0.7, 0.66, 0.5))               # blueprint sheet
+    root.add_child(b.to_node("Bench"))
+    var body := StaticBody3D.new()
+    var cs := CollisionShape3D.new()
+    var shape := BoxShape3D.new()
+    shape.size = Vector3(2.4, 1.2, 1.1)
+    cs.shape = shape
+    cs.position = Vector3(0, 0.6, 0)
+    body.add_child(cs)
+    root.add_child(body)
+
+func _add_progression_ui() -> void:
+    var layer := hud_canvas
+    tracker_label = Label.new()
+    tracker_label.position = Vector2(20, 114)
+    tracker_label.size = Vector2(330, 50)
+    tracker_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    tracker_label.add_theme_font_size_override("font_size", 14)
+    tracker_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.62))
+    tracker_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+    tracker_label.add_theme_constant_override("outline_size", 5)
+    layer.add_child(tracker_label)
+    var top_buttons := [["⚒\nКРАФТ", 340.0, func() -> void: crafting.call("open")],
+        ["☰\nЖУРНАЛ", 258.0, func() -> void: journal.call("open_journal", "quests")],
+        ["⌖\nКАРТА", 176.0, func() -> void: journal.call("open_journal", "map")]]
+    for entry in top_buttons:
+        var b := _make_ui_button(layer, String(entry[0]), Vector2.ZERO, Vector2(76, 62))
+        b.anchor_left = 1.0
+        b.anchor_right = 1.0
+        b.offset_left = -float(entry[1])
+        b.offset_right = -float(entry[1]) + 76.0
+        b.offset_top = 16.0
+        b.offset_bottom = 78.0
+        b.pressed.connect(entry[2])
+    weapon_button = _make_ui_button(layer, "⚔\nКулаки", Vector2.ZERO, Vector2(84, 62))
+    _place_bottom_right(weapon_button, 440.0, 18.0)
+    weapon_button.pressed.connect(func() -> void:
+        var id: String = progress.cycle("weapon")
+        if id == "":
+            show_message("Нет оружия. Создай его на верстаке.")
+        else:
+            show_message("В руках: %s" % String(ID.item(id)["name"])))
+    heal_button = _make_ui_button(layer, "✚\nЛЕЧЕНИЕ", Vector2.ZERO, Vector2(84, 62))
+    _place_bottom_right(heal_button, 534.0, 18.0)
+    heal_button.pressed.connect(func() -> void: progress.use_best_consumable())
+    tool_button = _make_ui_button(layer, "⛏\nИнстр.", Vector2.ZERO, Vector2(84, 62))
+    _place_bottom_right(tool_button, 628.0, 18.0)
+    tool_button.pressed.connect(func() -> void:
+        var id: String = progress.cycle("tool")
+        if id == "":
+            show_message("Нет инструмента. Создай его на верстаке.")
+        else:
+            show_message("Инструмент: %s" % String(ID.item(id)["name"])))
+    _refresh_progress_buttons()
+
+func _short(text: String) -> String:
+    return text if text.length() <= 11 else text.substr(0, 10) + "."
+
+func _refresh_progress_buttons() -> void:
+    if not progress or not weapon_button:
+        return
+    var stats: Dictionary = progress.attack_stats()
+    weapon_button.text = "⚔\n" + _short(String(stats["name"]))
+    var dur := ""
+    if String(stats["id"]) != "" and progress.owned.has(String(stats["id"])):
+        dur = " %d%%" % roundi(100.0 * float(progress.owned[String(stats["id"])]["dur"]) / maxf(1.0, progress.max_durability(String(stats["id"]))))
+    weapon_button.text += dur
+    heal_button.text = "✚\nЛечение %d" % progress.consumable_total()
+    tool_button.text = "⛏\n" + (_short(String(ID.item(progress.equipped_tool)["name"])) if progress.equipped_tool != "" else "нет")
+
+var _tracker_cache := ""
+func _refresh_tracker() -> void:
+    if not tracker_label or not quests:
+        return
+    var text: String = quests.call("tracker_text")
+    if text != _tracker_cache:
+        _tracker_cache = text
+        tracker_label.text = text
+
+func _on_progress_changed() -> void:
+    _refresh_inventory_ui()
+    _refresh_progress_buttons()
 
 func _setup_character_creator() -> void:
     character_creator = CanvasLayer.new()
@@ -313,6 +455,7 @@ func _on_appearance_confirmed(options: Dictionary) -> void:
 func _build_ui() -> void:
     var layer := CanvasLayer.new()
     add_child(layer)
+    hud_canvas = layer
     var panel := PanelContainer.new()
     panel.position = Vector2(18, 16)
     panel.custom_minimum_size = Vector2(300, 92)
@@ -488,13 +631,16 @@ func _refresh_inventory_ui() -> void:
     if not inventory_label or not player:
         return
     var lines := ["Уровень %d  •  XP %d/%d  •  Очки навыков: %d" % [player_level, player_xp, player_level * 100, skill_points]]
-    var keys := ["wood", "scrap", "plastic", "cloth", "food", "medicine"]
-    var labels := {"wood":"Дерево", "scrap":"Металлолом", "plastic":"Пластик", "cloth":"Ткань", "food":"Еда", "medicine":"Медикаменты"}
-    for key in keys:
-        lines.append("%s: %d" % [labels[key], int(inventory.get(key, 0))])
+    for key in ID.RES_ORDER:
+        if int(inventory.get(key, 0)) > 0 or ["wood", "scrap", "plastic", "cloth", "food", "medicine"].has(key):
+            lines.append("%s: %d" % [ID.RES_LABELS[key], int(inventory.get(key, 0))])
     lines.append("Вес: %.1f / %.1f кг" % [_inventory_weight(), carry_capacity])
-    lines.append("Урон оружия: %d" % roundi(_current_weapon_damage()))
-    lines.append("Инструмент: %s" % (player.equipped_tool if player.equipped_tool != "" else "нет"))
+    if progress:
+        var stats: Dictionary = progress.attack_stats()
+        lines.append("Оружие: %s  •  урон %d" % [String(stats["name"]), roundi(_current_weapon_damage())])
+        if progress.equipped_tool != "":
+            lines.append("Инструмент: %s" % String(ID.item(progress.equipped_tool)["name"]))
+        lines.append("Бинты и аптечки: %d" % progress.consumable_total())
     inventory_label.text = "\n".join(lines)
     upgrade_info.text = "Навыки становятся доступны за опыт. Каждые 100 XP — новый уровень."
     for button in upgrade_buttons:
@@ -519,8 +665,8 @@ func _build_chest_panel(layer: CanvasLayer) -> void:
     deposit_all.pressed.connect(_store_all_resources)
     var take_all := _make_ui_button(column, "ЗАБРАТЬ ВСЁ В РЮКЗАК", Vector2.ZERO, Vector2.ZERO)
     take_all.pressed.connect(_take_all_resources)
-    var keys := ["wood", "scrap", "plastic", "cloth", "food", "medicine"]
-    var labels := {"wood":"Дерево", "scrap":"Металлолом", "plastic":"Пластик", "cloth":"Ткань", "food":"Еда", "medicine":"Медикаменты"}
+    var keys: Array = ID.RES_ORDER
+    var labels: Dictionary = ID.RES_LABELS
     for key in keys:
         var row := HBoxContainer.new()
         column.add_child(row)
@@ -542,7 +688,7 @@ func _refresh_chest_ui() -> void:
     if not chest_panel:
         return
     var total := 0
-    var labels := {"wood":"Дерево", "scrap":"Металлолом", "plastic":"Пластик", "cloth":"Ткань", "food":"Еда", "medicine":"Медикаменты"}
+    var labels: Dictionary = ID.RES_LABELS
     for key in chest_inventory:
         total += int(chest_inventory[key])
         if chest_value_labels.has(key):
@@ -602,11 +748,9 @@ func _take_all_resources() -> void:
 
 func _current_weapon_damage() -> float:
     var base := 8.0
-    if player.equipped_weapon == "spear": base = 28.0
-    elif player.equipped_weapon == "bow": base = 22.0
-    elif player.equipped_tool == "hatchet": base = 16.0
-    elif player.equipped_tool == "crowbar": base = 18.0
-    # +6% per player level keeps later stages beatable without new gear alone.
+    if progress:
+        base = float(progress.attack_stats()["damage"])
+    # +6% per player level keeps later districts beatable without new gear alone.
     return base * (1.0 + 0.06 * float(player_level - 1))
 
 func _inventory_weight() -> float:
@@ -661,7 +805,7 @@ func _refresh_context_hint() -> void:
                 enemy_distance = current_enemy_distance
                 nearest_enemy = enemy
     if nearest_enemy:
-        context_label.text = "ATTACK — ударить заражённого"
+        context_label.text = "ATTACK — ударить: %s" % String(nearest_enemy.get("display_name"))
         return
     var nearest_drop: Dictionary = {}
     var drop_distance := 2.2
@@ -673,7 +817,7 @@ func _refresh_context_hint() -> void:
                 drop_distance = distance
                 nearest_drop = drop
     if not nearest_drop.is_empty():
-        context_label.text = "E / ACTION — подобрать: %s ×%d" % [str(nearest_drop.resource).capitalize(), int(nearest_drop.amount)]
+        context_label.text = "E / ACTION — подобрать: %s ×%d" % [String(ID.RES_LABELS.get(str(nearest_drop.resource), str(nearest_drop.resource))), int(nearest_drop.amount)]
         return
     var nearest_prop: Node = null
     var prop_distance := 3.2
@@ -685,6 +829,10 @@ func _refresh_context_hint() -> void:
                 nearest_prop = prop
     if nearest_prop:
         context_label.text = "E / ACTION — разобрать: %s" % nearest_prop.object_name
+    elif world and not world.call("nearest_note", player.global_position).is_empty():
+        context_label.text = "E / ACTION — прочитать: %s" % String(world.call("nearest_note", player.global_position)["data"]["title"])
+    elif player.global_position.distance_to(workbench_position) < 3.0:
+        context_label.text = "E / ACTION — верстак: создать и починить"
     elif player.global_position.distance_to(camp_chest_position) < 2.1:
         context_label.text = "E / ACTION — открыть лагерный сундук"
     elif player.global_position.distance_to(camp_position) < 3.5:
@@ -701,8 +849,7 @@ func spawn_loot(resource: String, amount: int, world_position: Vector3) -> void:
     mesh.height = 0.44
     orb.mesh = mesh
     var mat := StandardMaterial3D.new()
-    var colors := {"wood":Color(0.58,0.36,0.17), "scrap":Color(0.62,0.68,0.66), "plastic":Color(0.25,0.65,0.7), "cloth":Color(0.65,0.52,0.35), "food":Color(0.7,0.55,0.22), "medicine":Color(0.8,0.78,0.68)}
-    mat.albedo_color = colors.get(resource, Color.WHITE)
+    mat.albedo_color = ID.RES_COLORS.get(resource, Color.WHITE)
     mat.emission_enabled = true
     mat.emission = mat.albedo_color * 0.25
     orb.material_override = mat
@@ -729,7 +876,7 @@ func _collect_nearest_drop() -> bool:
         node.queue_free()
         loot_drops.remove_at(nearest_index)
         _gain_xp(10)
-        show_message("Подобрано: %s ×%d" % [str(drop.resource).capitalize(), int(drop.amount)])
+        show_message("Подобрано: %s ×%d" % [String(ID.RES_LABELS.get(str(drop.resource), str(drop.resource))), int(drop.amount)])
     return true
 
 func _set_touch_sprint(active: bool) -> void:
@@ -749,7 +896,12 @@ func interact() -> void:
         return
     if expansion and expansion.call("try_interact"):
         return
+    if world and world.call("try_interact"):
+        return
     if _collect_nearest_drop():
+        return
+    if player.global_position.distance_to(workbench_position) < 3.0:
+        crafting.call("open")
         return
     if player.global_position.distance_to(camp_chest_position) < 2.1:
         if chest_panel:
@@ -777,23 +929,168 @@ func interact() -> void:
     else:
         show_message("Подойди ближе к объекту или лагерю.")
 
+func attack_cooldown_value() -> float:
+    return float(progress.attack_stats()["cooldown"]) if progress else 0.5
+
+func _facing() -> Vector3:
+    return -player.global_transform.basis.z
+
 func player_attack() -> void:
-    var nearest: Node = null
-    var best := 7.0 if player.equipped_weapon == "bow" else (3.2 if player.equipped_weapon == "spear" else 2.6)
-    for enemy in infected:
-        if is_instance_valid(enemy):
-            var d: float = player.global_position.distance_to(enemy.global_position)
-            if d < best:
-                best = d
-                nearest = enemy
-    if expansion and expansion.call("try_attack"):
-        return
-    if nearest:
-        var weapon_damage := _current_weapon_damage()
-        nearest.call("take_hit", weapon_damage)
-        show_message("Попадание! Урон: %d" % roundi(weapon_damage))
+    var stats: Dictionary = progress.attack_stats()
+    var damage := _current_weapon_damage()
+    var reach := float(stats["reach"])
+    var kind := String(stats.get("kind", "melee"))
+    var forward := _facing()
+    forward.y = 0.0
+    forward = forward.normalized()
+    var opts := {}
+    if stats.has("stun"):
+        opts["stun"] = float(stats["stun"])
+    if stats.has("burn"):
+        opts["burn"] = float(stats["burn"])
+    var hits: Array = []
+    var origin: Vector3 = player.global_position
+    if kind == "cone":
+        for enemy in infected:
+            if is_instance_valid(enemy) and not enemy.get("dead"):
+                var to: Vector3 = enemy.global_position - origin
+                to.y = 0.0
+                if to.length() < reach and (to.length() < 0.8 or forward.dot(to.normalized()) > 0.72):
+                    hits.append(enemy)
+        _flame_effect(origin, forward, reach)
+    elif kind == "ranged":
+        var best_enemy: Node = null
+        var best_score := 1e9
+        for enemy in infected:
+            if is_instance_valid(enemy) and not enemy.get("dead"):
+                var to2: Vector3 = enemy.global_position - origin
+                to2.y = 0.0
+                var d := to2.length()
+                if d < reach and d > 0.3:
+                    var dot := forward.dot(to2.normalized())
+                    # Aim assist: anything in a wide cone in front counts; prefer the most central, then closest.
+                    if dot > 0.82:
+                        var score := d * (2.0 - dot)
+                        if score < best_score:
+                            best_score = score
+                            best_enemy = enemy
+        var end_point: Vector3 = origin + forward * reach
+        if best_enemy:
+            hits.append(best_enemy)
+            end_point = best_enemy.global_position
+        _tracer_effect(origin + Vector3(0, 1.1, 0), end_point + Vector3(0, 1.0, 0))
     else:
-        show_message("Никого рядом.")
+        var nearest: Node = null
+        var best := reach
+        for enemy in infected:
+            if is_instance_valid(enemy) and not enemy.get("dead"):
+                var d2: float = origin.distance_to(enemy.global_position)
+                if d2 < best:
+                    best = d2
+                    nearest = enemy
+        if nearest:
+            hits.append(nearest)
+            var aoe := float(stats.get("aoe", 0.0))
+            if aoe > 0.0:
+                for enemy in infected:
+                    if is_instance_valid(enemy) and enemy != nearest and not enemy.get("dead") and enemy.global_position.distance_to(nearest.global_position) < aoe:
+                        hits.append(enemy)
+                _ring_effect(nearest.global_position, aoe)
+    if hits.is_empty():
+        var animal_damage := damage * 0.25
+        if expansion and expansion.call("try_attack", animal_damage, maxf(reach, 2.8)):
+            progress.wear(String(stats["id"]), 1.0)
+            return
+        if kind == "cone":
+            progress.wear(String(stats["id"]), 1.0)
+        show_message("Мимо." if kind == "ranged" else "Никого рядом.")
+        return
+    var knock_force := float(stats.get("knockback", 0.0))
+    for enemy in hits:
+        var hit_opts := opts.duplicate()
+        if knock_force > 0.0:
+            var away: Vector3 = enemy.global_position - origin
+            away.y = 0.0
+            hit_opts["knock"] = away.normalized() * knock_force
+        var dealt := damage if (enemy == hits[0] or kind == "cone") else damage * 0.6
+        enemy.call("take_hit", dealt, hit_opts)
+    if kind != "cone":
+        show_message("Попадание! Урон: %d%s" % [roundi(damage), " ×%d" % hits.size() if hits.size() > 1 else ""])
+    progress.wear(String(stats["id"]), 1.0)
+    _refresh_progress_buttons()
+
+func _tracer_effect(from: Vector3, to: Vector3) -> void:
+    var line := MeshInstance3D.new()
+    var mesh := BoxMesh.new()
+    var length := from.distance_to(to)
+    mesh.size = Vector3(0.05, 0.05, maxf(0.2, length))
+    line.mesh = mesh
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = Color(1.0, 0.92, 0.6)
+    mat.emission_enabled = true
+    mat.emission = Color(1.0, 0.85, 0.4)
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    line.material_override = mat
+    add_child(line)
+    line.global_position = (from + to) * 0.5
+    if length > 0.01:
+        line.look_at(to, Vector3.UP)
+    var tween := line.create_tween()
+    tween.tween_property(mat, "albedo_color:a", 0.0, 0.18)
+    tween.tween_callback(line.queue_free)
+
+func _ring_effect(pos: Vector3, radius: float) -> void:
+    var ring := MeshInstance3D.new()
+    var mesh := CylinderMesh.new()
+    mesh.top_radius = radius
+    mesh.bottom_radius = radius
+    mesh.height = 0.05
+    mesh.radial_segments = 16
+    ring.mesh = mesh
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = Color(0.85, 0.8, 0.6, 0.45)
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    ring.material_override = mat
+    add_child(ring)
+    ring.global_position = pos + Vector3(0, 0.08, 0)
+    var tween := ring.create_tween()
+    tween.tween_property(ring, "scale", Vector3(1.2, 1.0, 1.2), 0.2)
+    tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.2)
+    tween.tween_callback(ring.queue_free)
+
+func _flame_effect(origin: Vector3, forward: Vector3, reach: float) -> void:
+    var fx := CPUParticles3D.new()
+    fx.emitting = true
+    fx.one_shot = true
+    fx.amount = 22
+    fx.lifetime = 0.35
+    fx.explosiveness = 0.9
+    fx.direction = forward
+    fx.spread = 18.0
+    fx.initial_velocity_min = reach * 1.6
+    fx.initial_velocity_max = reach * 2.4
+    fx.gravity = Vector3(0, 1.5, 0)
+    fx.scale_amount_min = 0.5
+    fx.scale_amount_max = 1.1
+    var mesh := SphereMesh.new()
+    mesh.radius = 0.2
+    mesh.height = 0.4
+    mesh.radial_segments = 6
+    mesh.rings = 3
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = Color(1.0, 0.5, 0.1)
+    mat.emission_enabled = true
+    mat.emission = Color(1.0, 0.4, 0.05)
+    mat.emission_energy_multiplier = 2.0
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mesh.material = mat
+    fx.mesh = mesh
+    add_child(fx)
+    fx.global_position = origin + Vector3(0, 1.0, 0) + forward * 0.6
+    var timer := get_tree().create_timer(0.8)
+    timer.timeout.connect(fx.queue_free)
 
 func add_resource(resource: String, amount: int) -> bool:
     if not inventory.has(resource):
@@ -822,7 +1119,8 @@ func refresh_stamina_hud() -> void:
 func refresh_hud() -> void:
     if not player or not hud_label:
         return
-    hud_label.text = "AFTERFALL  |  GREYWOOD\nHP %d   WOOD %d   SCRAP %d   FOOD %d" % [roundi(player.health), inventory.wood, inventory.scrap, inventory.food]
+    var place := String(world.call("district_name", world.current)) if (world and world.current != "") else "Пустошь"
+    hud_label.text = "%s  |  ур. %d\nHP %d   WOOD %d   SCRAP %d   FOOD %d" % [place, player_level, roundi(player.health), inventory.wood, inventory.scrap, inventory.food]
     health_bar.value = player.health
     health_bar.max_value = player.max_health
     stamina_bar.value = player.stamina
@@ -843,7 +1141,7 @@ func save_game(show_feedback: bool = true) -> void:
         var node: Node3D = drop.get("node")
         if is_instance_valid(node):
             saved_loot.append({"resource": str(drop.get("resource", "scrap")), "amount": int(drop.get("amount", 1)), "position": [node.global_position.x, node.global_position.y, node.global_position.z]})
-    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "chest": chest_inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw, "stage": (stage_manager.stage if stage_manager else saved_stage)}
+    var data := {"position": [player.global_position.x, player.global_position.y, player.global_position.z], "health": player.health, "stamina": player.stamina, "inventory": inventory, "chest": chest_inventory, "salvaged": salvaged_ids, "loot": saved_loot, "xp": player_xp, "level": player_level, "skill_points": skill_points, "carry_capacity": carry_capacity, "move_speed": player.move_speed, "sprint_speed": player.sprint_speed, "max_stamina": player.max_stamina, "crafted": expansion.crafted if expansion else {}, "equipped_weapon": player.equipped_weapon, "equipped_tool": player.equipped_tool, "camera_yaw": player.camera_yaw}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data))
@@ -891,7 +1189,6 @@ func _load_game() -> void:
     player.equipped_weapon = str(parsed.get("equipped_weapon", ""))
     player.equipped_tool = str(parsed.get("equipped_tool", ""))
     player.camera_yaw = float(parsed.get("camera_yaw", 0.0))
-    saved_stage = maxi(0, int(parsed.get("stage", 0)))
     var crafted_state = parsed.get("crafted", {})
     if crafted_state is Dictionary: saved_expansion_state = crafted_state
     var saved_ids = parsed.get("salvaged", [])

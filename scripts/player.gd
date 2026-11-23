@@ -28,6 +28,8 @@ var animation_model: Node3D
 var animation_parts: Array[Node3D] = []
 var animation_clock: float = 0.0
 var attack_animation: float = 0.0
+var burn_time: float = 0.0
+var burn_hud_timer: float = 0.0
 
 func _ready() -> void:
     health = max_health
@@ -76,6 +78,15 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)
     invulnerable = maxf(0.0, invulnerable - delta)
+    if burn_time > 0.0:
+        burn_time -= delta
+        health = maxf(0.0, health - 4.0 * delta)
+        burn_hud_timer -= delta
+        if burn_hud_timer <= 0.0 and is_instance_valid(main_game):
+            burn_hud_timer = 0.3
+            main_game.call("refresh_hud")
+            if health <= 0.0:
+                main_game.call("player_died")
     var keys := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     var input_dir := touch_vector if touch_vector.length() > 0.12 else keys
     var direction := Vector3(input_dir.x, 0.0, input_dir.y)
@@ -148,6 +159,11 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
             goal += 0.2 if i == 2 else -0.2
         part.rotation.x = lerpf(part.rotation.x, goal, 0.4)
 
+func ignite(seconds: float) -> void:
+    burn_time = maxf(burn_time, seconds)
+    if is_instance_valid(main_game):
+        main_game.call("show_message", "Ты горишь!")
+
 func rotate_camera(amount: float) -> void:
     camera_yaw += amount
 
@@ -164,6 +180,6 @@ func take_damage(amount: float) -> void:
 func perform_attack() -> void:
     if attack_cooldown > 0.0 or main_game == null:
         return
-    attack_cooldown = 0.48
-    attack_animation = 0.32
+    attack_cooldown = float(main_game.call("attack_cooldown_value"))
+    attack_animation = minf(0.32, attack_cooldown * 0.7)
     main_game.call("player_attack")

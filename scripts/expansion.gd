@@ -92,27 +92,6 @@ func _add_controls() -> void:
     game._place_bottom_right(sneak,300,88)
     sneak.toggle_mode = true
     sneak.toggled.connect(_toggle_stealth)
-    var craft: Button = game._make_ui_button(layer,"CRAFT",Vector2(135,118),Vector2(105,48))
-    craft.pressed.connect(_toggle_craft)
-    craft_panel = PanelContainer.new()
-    craft_panel.position = Vector2(250,150)
-    craft_panel.custom_minimum_size = Vector2(300,280)
-    craft_panel.visible = false
-    layer.add_child(craft_panel)
-    var col := VBoxContainer.new()
-    craft_panel.add_child(col)
-    var title := Label.new()
-    title.text = "МАСТЕРСКАЯ • СОЗДАНИЕ"
-    col.add_child(title)
-    status_label = Label.new()
-    status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    col.add_child(status_label)
-    _recipe_button(col,"Каменный топор","hatchet",{"wood":3,"scrap":2}, "Разборка объектов быстрее")
-    _recipe_button(col,"Монтировка","crowbar",{"wood":1,"scrap":4}, "Взлом баррикад и дверей")
-    _recipe_button(col,"Самодельное копьё","spear",{"wood":4,"scrap":1}, "Урон в бою увеличен")
-    _recipe_button(col,"Лук охотника","bow",{"wood":5,"cloth":2}, "Дальняя охота (прототип)")
-    var close: Button = game._make_ui_button(col,"ЗАКРЫТЬ",Vector2.ZERO,Vector2.ZERO)
-    close.pressed.connect(_toggle_craft)
     _refresh_status()
 func _recipe_button(parent: Node, label: String, id: String, cost: Dictionary, note: String) -> void:
     var b: Button = game._make_ui_button(parent,label+"  ["+_cost_text(cost)+"]",Vector2.ZERO,Vector2.ZERO)
@@ -166,9 +145,9 @@ func _toggle_stealth(active: bool) -> void:
     game.show_message("Тихий шаг включён" if active else "Обычная стойка")
 func try_interact() -> bool:
     return false
-func try_attack(damage: float = 1.0) -> bool:
+func try_attack(damage: float = 1.0, reach: float = 2.8) -> bool:
     var closest: Node3D = null
-    var best := 7.0 if game.player.equipped_weapon == "bow" else 2.8
+    var best := reach
     for a in animals:
         if is_instance_valid(a):
             var d: float = game.player.global_position.distance_to(a.global_position)
