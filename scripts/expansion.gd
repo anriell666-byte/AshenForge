@@ -15,7 +15,26 @@ func setup(owner) -> void:
     _spawn_wildlife()
     _add_controls()
     _refresh_status()
+var _facades: Array = []
+var _facade_timer := 0.0
+func _update_facades(delta: float) -> void:
+    _facade_timer -= delta
+    if _facade_timer > 0.0 or not is_instance_valid(game.player):
+        return
+    _facade_timer = 0.15
+    if _facades.is_empty():
+        for n in game.find_children("FacadeUpper", "Node3D", true, false):
+            _facades.append(n)
+    var p: Vector3 = game.player.global_position
+    for f in _facades:
+        if not is_instance_valid(f):
+            continue
+        var house: Node3D = f.get_parent()
+        var local: Vector3 = p - house.global_position
+        var inside: bool = absf(local.x) < 5.6 and local.z > -5.0 and local.z < 5.2
+        f.visible = not inside
 func _process(delta: float) -> void:
+    _update_facades(delta)
     for animal in animals:
         if not is_instance_valid(animal): continue
         var data: Dictionary = animal_data.get(animal.get_instance_id(), {})

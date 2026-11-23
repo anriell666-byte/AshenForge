@@ -53,9 +53,14 @@ static func _finish(parent: Node, b: Object, label: String, pos: Vector3, yaw: f
     parent.add_child(node)
     return node
 
-static func _solid_cylinder(parent: Node, pos: Vector3, radius: float, height: float) -> void:
+static func _solid_cylinder(parent: Node, pos: Vector3, radius: float, height: float, visual: Node = null) -> void:
     var body := StaticBody3D.new()
     body.position = pos
+    if visual != null:
+        # Trees can be chopped with the attack button (see main.gd _chop_tree).
+        body.add_to_group("choppable")
+        body.set_meta("visual", visual)
+        body.set_meta("hp", 5.0)
     var cs := CollisionShape3D.new()
     var shape := CylinderShape3D.new()
     shape.radius = radius
@@ -80,8 +85,8 @@ static func pine(parent: Node, pos: Vector3, s: float = 1.0) -> void:
         var r := (1.7 - 0.34 * float(i)) * s
         var col: Color = PINE_GREENS[rng.randi() % PINE_GREENS.size()]
         b.frustum(Vector3(0, (1.1 + 0.95 * float(i)) * s, 0), 1.45 * s, r, r, 0.12 * s, 0.12 * s, 7, col, Vector2.ZERO, rng.randf() * 50.0)
-    _finish(parent, b, "Pine", pos, rng.randf() * TAU)
-    _solid_cylinder(parent, pos, 0.4 * s, 3.0)
+    var vis := _finish(parent, b, "Pine", pos, rng.randf() * TAU)
+    _solid_cylinder(parent, pos, 0.4 * s, 3.0, vis)
 
 static func oak(parent: Node, pos: Vector3, s: float = 1.0) -> void:
     var rng := _rng_for(pos, 2)
@@ -97,8 +102,8 @@ static func oak(parent: Node, pos: Vector3, s: float = 1.0) -> void:
         var rad := (1.1 + rng.randf() * 0.35) * s
         b.blob(Vector3(cos(a) * 0.85 * s, (2.9 + rng.randf() * 0.7) * s, sin(a) * 0.85 * s), Vector3(rad, rad * 0.82, rad), col, 3, 7)
     b.blob(Vector3(0, 3.7 * s, 0), Vector3(1.25 * s, 1.0 * s, 1.25 * s), LEAF_GREENS[rng.randi() % LEAF_GREENS.size()], 3, 7)
-    _finish(parent, b, "Oak", pos, rng.randf() * TAU)
-    _solid_cylinder(parent, pos, 0.42 * s, 3.0)
+    var vis := _finish(parent, b, "Oak", pos, rng.randf() * TAU)
+    _solid_cylinder(parent, pos, 0.42 * s, 3.0, vis)
 
 static func dead_tree(parent: Node, pos: Vector3, s: float = 1.0) -> void:
     var rng := _rng_for(pos, 3)
@@ -110,8 +115,8 @@ static func dead_tree(parent: Node, pos: Vector3, s: float = 1.0) -> void:
         var a := float(i) * 2.4 + rng.randf()
         var len := (1.0 - float(i) * 0.1) * s
         b.limb_between(Vector3(0, y, 0), Vector3(cos(a) * len, y + 0.7 * s, sin(a) * len), 0.08 * s, 0.025 * s, wood.darkened(0.1), 4)
-    _finish(parent, b, "Dead tree", pos, rng.randf() * TAU)
-    _solid_cylinder(parent, pos, 0.32 * s, 2.5)
+    var vis := _finish(parent, b, "Dead tree", pos, rng.randf() * TAU)
+    _solid_cylinder(parent, pos, 0.32 * s, 2.5, vis)
 
 static func bush(parent: Node, pos: Vector3, s: float = 1.0) -> void:
     var rng := _rng_for(pos, 4)

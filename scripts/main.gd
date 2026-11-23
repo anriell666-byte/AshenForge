@@ -837,16 +837,12 @@ func _refresh_context_hint() -> void:
     if not nearest_drop.is_empty():
         _set_hint("Подобрать: %s ×%d" % [String(ID.RES_LABELS.get(str(nearest_drop.resource), str(nearest_drop.resource))), int(nearest_drop.amount)], "ВЗЯТЬ")
         return
-    var nearest_prop: Node = null
-    var prop_distance := 3.2
-    for prop in props:
-        if is_instance_valid(prop):
-            var distance: float = player.global_position.distance_to(prop.global_position)
-            if distance < prop_distance:
-                prop_distance = distance
-                nearest_prop = prop
+    var nearest_prop: Node = _harvest_target(3.2)
     if nearest_prop:
-        _set_hint("Разобрать: %s" % nearest_prop.object_name, "РАЗОБРАТЬ")
+        if nearest_prop.is_in_group("choppable"):
+            _set_hint("Дерево: бей АТАКОЙ или кнопкой РУБИТЬ", "РУБИТЬ")
+        else:
+            _set_hint("Разобрать: %s (АТАКА или РАЗОБРАТЬ)" % nearest_prop.object_name, "РАЗОБРАТЬ")
     elif world and not world.call("nearest_note", player.global_position).is_empty():
         _set_hint("Прочитать: %s" % String(world.call("nearest_note", player.global_position)["data"]["title"]), "ЧИТАТЬ")
     elif player.global_position.distance_to(workbench_position) < 3.0:
@@ -940,18 +936,53 @@ func interact() -> void:
         show_message("Ты отдохнул. Ресурсы убраны в лагерный сундук, прогресс сохранён.")
         refresh_hud()
         return
+    var target := _harvest_target(3.2)
+    if target:
+        _harvest_hit(target)
+    else:
+        show_message("Рядом нечего собирать. Подойди ближе к дереву, камню или предмету.")
+
+## Nearest breakable prop or choppable tree within `max_dist`.
+func _harvest_target(max_dist: float) -> Node:
     var nearest: Node = null
-    var best := 3.2
+    var best := max_dist
     for prop in props:
         if is_instance_valid(prop):
             var d: float = player.global_position.distance_to(prop.global_position)
             if d < best:
                 best = d
                 nearest = prop
-    if nearest:
-        nearest.call("damage_object")
+    for tree in get_tree().get_nodes_in_group("choppable"):
+        if is_instance_valid(tree):
+            var d2: float = player.global_position.distance_to((tree as Node3D).global_position) - 0.6
+            if d2 < best:
+                best = d2
+                nearest = tree
+    return nearest
+
+func _harvest_hit(target: Node) -> void:
+    if target.is_in_group("choppable"):
+        var power: float = float(progress.call("harvest_power", "wood"))
+        progress.call("wear_for_harvest")
+        var hp: float = float(target.get_meta("hp")) - power
+        target.set_meta("hp", hp)
+        var vis = target.get_meta("visual")
+        if is_instance_valid(vis):
+            var tween := (vis as Node3D).create_tween()
+            tween.tween_property(vis, "scale", Vector3(1.04, 0.97, 1.04), 0.05)
+            tween.tween_property(vis, "scale", Vector3.ONE, 0.08)
+        show_message("Дерево: %d/5" % maxi(0, int(ceil(hp))))
+        if hp <= 0.0:
+            var key := "Tree@%d,%d,%d" % [roundi((target as Node3D).global_position.x), roundi((target as Node3D).global_position.y), roundi((target as Node3D).global_position.z)]
+            if not salvaged_ids.has(key):
+                salvaged_ids.append(key)
+            spawn_loot("wood", 3, (target as Node3D).global_position)
+            _gain_xp(10)
+            if is_instance_valid(vis):
+                vis.queue_free()
+            target.queue_free()
     else:
-        show_message("Подойди ближе к объекту или лагерю.")
+        target.call("damage_object")
 
 func attack_cooldown_value() -> float:
     return float(progress.attack_stats()["cooldown"]) if progress else 0.5
@@ -1025,8 +1056,11 @@ func player_attack() -> void:
         if expansion and expansion.call("try_attack", animal_damage, maxf(reach, 2.8)):
             progress.wear(String(stats["id"]), 1.0)
             return
-        if kind == "cone":
-            progress.wear(String(stats["id"]), 1.0)
+        if kind != "ranged":
+            var target := _harvest_target(maxf(2.6, minf(reach, 3.4)))
+            if target:
+                _harvest_hit(target)
+                return
         show_message("Мимо." if kind == "ranged" else "Никого рядом.")
         return
     var knock_force := float(stats.get("knockback", 0.0))
@@ -1225,6 +1259,13 @@ func _load_game() -> void:
             if salvaged_ids.has(key):
                 props.erase(prop)
                 prop.queue_free()
+    for tree in get_tree().get_nodes_in_group("choppable"):
+        var tkey := "Tree@%d,%d,%d" % [roundi((tree as Node3D).global_position.x), roundi((tree as Node3D).global_position.y), roundi((tree as Node3D).global_position.z)]
+        if salvaged_ids.has(tkey):
+            var tvis = tree.get_meta("visual")
+            if is_instance_valid(tvis):
+                tvis.queue_free()
+            tree.queue_free()
     refresh_hud()
     _refresh_inventory_ui()
     _refresh_chest_ui()

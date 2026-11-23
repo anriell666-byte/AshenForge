@@ -46,15 +46,24 @@ func _rebuild_house(label: String, tint: Color) -> void:
     _box(root,"Left solid wall",Vector3(-4.35,2.0,0),Vector3(0.28,4.0,8.0),tint,true)
     _box(root,"Right solid wall",Vector3(4.35,2.0,0),Vector3(0.28,4.0,8.0),tint,true)
     # A low, visible front wall keeps the room enclosed without blocking the camera.
-    _box(root,"Front cutaway left",Vector3(-3.0,0.78,3.92),Vector3(2.8,1.56,0.3),tint,true)
-    _box(root,"Front cutaway right",Vector3(3.0,0.78,3.92),Vector3(2.8,1.56,0.3),tint,true)
-    _box(root,"Door header",Vector3(0,3.35,3.92),Vector3(3.2,1.0,0.3),tint,true)
+    # Lower front wall is solid; the upper facade (windows, door header) is drawn as a
+    # separate group that hides while the player is inside, so the room stays visible.
+    _box(root,"Front wall left",Vector3(-2.6,0.75,3.92),Vector3(3.8,1.5,0.3),tint,true)
+    _box(root,"Front wall right",Vector3(2.6,0.75,3.92),Vector3(3.8,1.5,0.3),tint,true)
+    var fac := Node3D.new()
+    fac.name = "FacadeUpper"
+    root.add_child(fac)
+    _box(fac,"Door header",Vector3(0,3.15,3.92),Vector3(1.4,1.7,0.3),tint,false)
+    for sd in [-1.0, 1.0]:
+        _box(fac,"Pier inner",Vector3(sd*1.475,2.75,3.92),Vector3(1.55,2.5,0.3),tint,false)
+        _box(fac,"Pier outer",Vector3(sd*3.925,2.75,3.92),Vector3(1.15,2.5,0.3),tint,false)
+        _box(fac,"Window lintel",Vector3(sd*2.8,3.25,3.92),Vector3(1.1,1.5,0.3),tint,false)
     var trim := Color(0.22,0.16,0.12)
     for x in [-4.18,4.18]:
         _box(root,"Timber corner post",Vector3(x,2.0,3.72),Vector3(0.16,3.85,0.16),trim,false)
-    for x in [-1.62,1.62]:
-        _box(root,"Door jamb",Vector3(x,1.2,3.72),Vector3(0.14,2.4,0.16),trim,false)
-    _box(root,"Door lintel trim",Vector3(0,2.42,3.72),Vector3(3.35,0.16,0.16),trim,false)
+    for x in [-0.72,0.72]:
+        _box(root,"Door jamb",Vector3(x,1.15,4.05),Vector3(0.12,2.3,0.14),trim,false)
+    _box(root,"Door lintel trim",Vector3(0,2.34,4.05),Vector3(1.6,0.14,0.14),trim,false)
     # Interior partitions and furniture are deliberately low-detail but readable silhouettes.
     _box(root,"Interior divider",Vector3(0,1.2,-1.15),Vector3(0.14,2.4,3.0),tint.darkened(0.14),true)
     _box(root,"Bed base",Vector3(-2.65,0.23,-2.35),Vector3(1.9,0.3,1.25),Color(0.23,0.17,0.13),true)
@@ -83,7 +92,13 @@ func _rebuild_shop() -> void:
     _box(root,"Market right wall",Vector3(4.85,2.0,0),Vector3(0.28,4.0,8.9),tint,true)
     _box(root,"Market entrance left",Vector3(-3.9,0.85,4.35),Vector3(1.9,1.7,0.3),tint,true)
     _box(root,"Market entrance right",Vector3(3.9,0.85,4.35),Vector3(1.9,1.7,0.3),tint,true)
-    _box(root,"Market entrance header",Vector3(0,3.35,4.35),Vector3(5.9,1.1,0.3),tint,true)
+    var fac := Node3D.new()
+    fac.name = "FacadeUpper"
+    root.add_child(fac)
+    _box(fac,"Market entrance header",Vector3(0,3.35,4.35),Vector3(5.9,1.3,0.3),tint,false)
+    for sd in [-1.0, 1.0]:
+        _box(fac,"Market pier",Vector3(sd*3.9,2.85,4.35),Vector3(1.9,2.3,0.3),tint,false)
+        _box(fac,"Market window",Vector3(sd*3.9,2.4,4.52),Vector3(1.2,0.9,0.05),Color(0.13,0.23,0.26),false)
     _box(root,"Shop counter detail",Vector3(0,0.65,-1.0),Vector3(5.6,1.25,0.8),Color(0.26,0.20,0.14),true)
     for x in [-3.7,3.7]:
         _box(root,"Grocery rack",Vector3(x,1.0,-1.9),Vector3(0.5,2.0,3.2),Color(0.28,0.24,0.18),true)
@@ -100,7 +115,12 @@ func _rebuild_garage() -> void:
     _box(root,"Garage right wall",Vector3(4.85,1.8,0),Vector3(0.28,3.6,8),tint,true)
     _box(root,"Garage front left",Vector3(-4.0,0.9,3.85),Vector3(1.7,1.8,0.3),tint,true)
     _box(root,"Garage front right",Vector3(4.0,0.9,3.85),Vector3(1.7,1.8,0.3),tint,true)
-    _box(root,"Garage lintel",Vector3(0,3.15,3.85),Vector3(6.2,0.8,0.3),tint,true)
+    var fac := Node3D.new()
+    fac.name = "FacadeUpper"
+    root.add_child(fac)
+    _box(fac,"Garage lintel",Vector3(0,3.1,3.85),Vector3(6.2,1.0,0.3),tint,false)
+    for sd in [-1.0, 1.0]:
+        _box(fac,"Garage pier",Vector3(sd*4.0,2.7,3.85),Vector3(1.7,1.8,0.3),tint,false)
     _box(root,"Workbench top",Vector3(-2.5,1.0,-2.2),Vector3(2.4,0.14,0.8),Color(0.28,0.21,0.14),true)
     _box(root,"Workbench legs",Vector3(-2.5,0.48,-2.2),Vector3(2.2,0.9,0.12),Color(0.18,0.2,0.19),true)
     _box(root,"Tool board",Vector3(-2.5,2.1,-3.65),Vector3(2.7,1.25,0.12),Color(0.25,0.29,0.27),true)
@@ -122,8 +142,8 @@ func _add_building_detail_pass() -> void:
         _box(root, "Roof ridge", Vector3(0,4.9,0), Vector3(0.22,0.22,8.7), trim, false)
         for z in [-2.7,0.0,2.7]:
             _box(root, "Roof seam", Vector3(0,4.82,z), Vector3(8.2,0.06,0.06), trim, false)
-        _box(root, "Front door", Vector3(0,1.05,4.09), Vector3(1.18,2.1,0.12), Color(0.25,0.18,0.13), false)
-        _box(root, "Door handle", Vector3(0.43,1.1,4.17), Vector3(0.07,0.16,0.05), Color(0.62,0.52,0.31), false)
+        _box(root, "Front door", Vector3(0,1.1,4.09), Vector3(1.32,2.2,0.12), Color(0.25,0.18,0.13), false)
+        _box(root, "Door handle", Vector3(0.5,1.1,4.17), Vector3(0.07,0.16,0.05), Color(0.62,0.52,0.31), false)
         for x in [-2.8,2.8]:
             _box(root, "Window crossbar", Vector3(x,2.0,4.16), Vector3(1.0,0.07,0.06), trim, false)
             _box(root, "Window vertical bar", Vector3(x,2.0,4.16), Vector3(0.07,0.98,0.06), trim, false)
