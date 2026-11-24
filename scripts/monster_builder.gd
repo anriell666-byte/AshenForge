@@ -26,6 +26,11 @@ static func build(id: String) -> Dictionary:
     return r
 
 # ---------------------------------------------------------------- helpers
+static func _lp() -> Object:
+    var l = LP.new()
+    l.smooth = true
+    return l
+
 static func _limb(label: String, pos: Vector3, main: Object, glow: Object = null, z_tilt: float = 0.0) -> Node3D:
     var pivot := Node3D.new()
     pivot.name = label
@@ -58,8 +63,8 @@ static func _walker(p: Dictionary) -> Dictionary:
     var glow_col: Color = p.get("glow", Color(0.85, 0.8, 0.45))
     var root := Node3D.new()
     root.name = "Walker"
-    var b := LP.new()
-    var g := LP.new()
+    var b := _lp()
+    var g := _lp()
     var lean := -17.0
     b.frustum(Vector3(0, 0.80, 0), 0.15, 0.15, 0.10, 0.15, 0.10, 8, pants, Vector2.ZERO, 22.5, false)
     b.push(Vector3(0, 0.93, 0), Vector3(lean, 0, 0))
@@ -83,6 +88,18 @@ static func _walker(p: Dictionary) -> Dictionary:
         b.box(hc + Vector3(-0.018 + float(k) * 0.012, -0.056, -0.104), Vector3(0.007, 0.012, 0.008), Color(0.85, 0.82, 0.7))
     b.box(hc + Vector3(-0.03, 0.115, 0.02), Vector3(0.05, 0.02, 0.08), Color(0.2, 0.18, 0.15))
     b.box(hc + Vector3(0.04, 0.10, 0.05), Vector3(0.04, 0.02, 0.06), Color(0.2, 0.18, 0.15))
+    # exposed ribs through the torn shirt, collar bones, neck bite, patchy hair, hanging jaw
+    var bone_c := Color(0.82, 0.78, 0.66)
+    for k in range(4):
+        var ry := 0.16 + float(k) * 0.045
+        b.limb_between(Vector3(0.02, ry, -0.128), Vector3(0.11 - float(k) * 0.01, ry - 0.025, -0.108), 0.009, 0.007, bone_c, 4)
+    for sx in [-1.0, 1.0]:
+        b.limb_between(Vector3(sx * 0.02, 0.56, -0.1), Vector3(sx * 0.17, 0.55, -0.07), 0.014, 0.012, skin.darkened(0.05), 5)
+    b.blob(Vector3(0.04, 0.6, -0.04), Vector3(0.03, 0.025, 0.02), Color(0.35, 0.05, 0.05), 2, 6)
+    for k in range(3):
+        b.blob(hc + Vector3(-0.05 + float(k) * 0.05, 0.1, 0.0), Vector3(0.03, 0.02, 0.04), Color(0.18, 0.15, 0.12), 2, 5)
+    b.box(hc + Vector3(0, -0.115, -0.07), Vector3(0.06, 0.02, 0.05), skin.darkened(0.1))
+    b.blob(hc + Vector3(0.03, -0.14, -0.095), Vector3(0.008, 0.03, 0.008), Color(0.55, 0.12, 0.1), 2, 5)
     if extras.has("bloat"):
         b.blob(Vector3(0, 0.22, -0.12), Vector3(0.27, 0.27, 0.25), skin.lightened(0.08), 4, 8)
         for k in range(6):
@@ -97,20 +114,27 @@ static func _walker(p: Dictionary) -> Dictionary:
     var sh_z := 0.52 * sin(deg_to_rad(lean))
     var limbs: Array = []
     for sx in [1.0, -1.0]:
-        var a := LP.new()
+        var a := _lp()
         a.limb_between(Vector3.ZERO, Vector3(0, -0.17, 0), 0.052, 0.048, shirt)
         a.limb_between(Vector3(0, -0.17, 0), Vector3(0, -0.60, 0), 0.044, 0.032, skin)
         a.blob(Vector3(0, -0.63, 0), Vector3(0.035, 0.05, 0.03), skin, 2, 6)
-        for f in range(3):
-            a.spike_dir(Vector3((float(f) - 1.0) * 0.018, -0.65, 0), Vector3((float(f) - 1.0) * 0.026, -0.74, -0.03), 0.01, skin.darkened(0.2), 3)
+        a.blob(Vector3(0, -0.17, 0), Vector3(0.05, 0.045, 0.05), skin.darkened(0.1), 2, 6)
+        a.spike_dir(Vector3(0.0, -0.3, -0.04), Vector3(0.0, -0.4, -0.06), 0.012, Color(0.82, 0.78, 0.66), 3)
+        a.blob(Vector3(0, -0.33, -0.035), Vector3(0.03, 0.045, 0.012), Color(0.4, 0.06, 0.06), 2, 5)
+        for f in range(4):
+            a.spike_dir(Vector3((float(f) - 1.5) * 0.016, -0.65, 0), Vector3((float(f) - 1.5) * 0.024, -0.75 - float(f % 2) * 0.02, -0.035), 0.009, skin.darkened(0.2), 3)
         limbs.append(_limb("ArmPivot", Vector3(sx * 0.25, sh_y, sh_z), a, null, -sx * 0.1))
     var legs: Array = []
     for sx in [-1.0, 1.0]:
-        var l := LP.new()
+        var l := _lp()
         l.limb_between(Vector3.ZERO, Vector3(0, -0.46, 0), 0.075, 0.058, pants)
         l.limb_between(Vector3(0, -0.46, 0), Vector3(0, -0.64, 0), 0.058, 0.05, pants.darkened(0.1))
         l.limb_between(Vector3(0, -0.64, 0), Vector3(0, -0.88, 0), 0.048, 0.04, skin.darkened(0.08))
         l.box(Vector3(0, -0.9, -0.045), Vector3(0.1, 0.06, 0.25), Color(0.14, 0.12, 0.1))
+        l.blob(Vector3(0, -0.46, -0.03), Vector3(0.06, 0.055, 0.055), pants.darkened(0.12), 2, 6)
+        for k in range(5):
+            var ca := float(k) * TAU / 5.0
+            l.spike_dir(Vector3(cos(ca) * 0.05, -0.62, sin(ca) * 0.05), Vector3(cos(ca) * 0.055, -0.72, sin(ca) * 0.055), 0.016, pants.darkened(0.2), 3)
         legs.append(_limb("LegPivot", Vector3(sx * 0.09, 0.93, 0), l))
     limbs.append(legs[0])
     limbs.append(legs[1])
@@ -125,8 +149,8 @@ static func _stalker(p: Dictionary) -> Dictionary:
     var glow_col: Color = p.get("glow", Color(1.0, 0.4, 0.2))
     var root := Node3D.new()
     root.name = "Stalker"
-    var b := LP.new()
-    var g := LP.new()
+    var b := _lp()
+    var g := _lp()
     var lean := -26.0
     b.frustum(Vector3(0, 1.45, 0), 0.12, 0.12, 0.09, 0.12, 0.09, 7, skin.darkened(0.1), Vector2.ZERO, 0.0, false)
     b.push(Vector3(0, 1.55, 0), Vector3(lean, 0, 0))
@@ -155,6 +179,17 @@ static func _stalker(p: Dictionary) -> Dictionary:
         g.box(hc + Vector3(0, -0.02, -0.112), Vector3(0.016, 0.06, 0.006), glow_col)
     for sx in [-1.0, 1.0]:
         b.spike_dir(hc + Vector3(sx * 0.02, 0.04, -0.105), hc + Vector3(sx * 0.05, 0.065, -0.125), 0.008, Color(0.05, 0.02, 0.03), 3)
+    # hanging jaw with needle teeth, curved ribs, vertebra knobs
+    b.box(hc + Vector3(0, -0.15, -0.07), Vector3(0.07, 0.03, 0.09), skin.darkened(0.08))
+    for k in range(6):
+        var tx2 := -0.026 + float(k) * 0.0105
+        b.spike_dir(hc + Vector3(tx2, -0.135, -0.108), hc + Vector3(tx2, -0.085, -0.11), 0.005, Color(0.9, 0.88, 0.8), 3)
+    for k in range(5):
+        var ry2 := 0.1 + float(k) * 0.14
+        for sx in [-1.0, 1.0]:
+            b.limb_between(Vector3(sx * 0.02, ry2, -0.09), Vector3(sx * (0.14 - 0.008 * float(k)), ry2 - 0.04, -0.03), 0.012, 0.009, skin.lightened(0.18), 4)
+    for k in range(7):
+        b.blob(Vector3(0, 0.06 + float(k) * 0.11, 0.1), Vector3(0.03, 0.03, 0.03), skin.darkened(0.2), 2, 5)
     b.pop()
     g.pop()
 
@@ -162,17 +197,21 @@ static func _stalker(p: Dictionary) -> Dictionary:
     var sh_z := 0.72 * sin(deg_to_rad(lean))
     var limbs: Array = []
     for sx in [1.0, -1.0]:
-        var a := LP.new()
+        var a := _lp()
         a.limb_between(Vector3.ZERO, Vector3(0, -0.45, 0), 0.058, 0.045, skin)
         a.limb_between(Vector3(0, -0.45, 0), Vector3(0, -0.8, 0), 0.045, 0.038, accent)
         a.limb_between(Vector3(0, -0.8, 0), Vector3(0, -sh_y + 0.02, 0), 0.036, 0.012, dark, 5)
+        a.blob(Vector3(0, -0.45, 0), Vector3(0.062, 0.06, 0.062), skin.darkened(0.12), 2, 6)
+        a.spike_dir(Vector3(0, -0.45, 0.04), Vector3(0, -0.52, 0.14), 0.014, dark, 3)
         limbs.append(_limb("ArmPivot", Vector3(sx * 0.21, sh_y, sh_z), a, null, -sx * 0.08))
     var legs: Array = []
     for sx in [-1.0, 1.0]:
-        var l := LP.new()
+        var l := _lp()
         l.limb_between(Vector3.ZERO, Vector3(0, -0.6, 0), 0.085, 0.06, skin)
         l.limb_between(Vector3(0, -0.6, 0), Vector3(0, -0.92, 0), 0.06, 0.045, accent)
         l.limb_between(Vector3(0, -0.92, 0), Vector3(0, -1.55, 0), 0.04, 0.013, dark, 5)
+        l.blob(Vector3(0, -0.6, -0.02), Vector3(0.075, 0.07, 0.07), skin.darkened(0.12), 2, 6)
+        l.blob(Vector3(0, -0.92, 0), Vector3(0.055, 0.055, 0.055), accent.darkened(0.1), 2, 6)
         legs.append(_limb("LegPivot", Vector3(sx * 0.11, 1.55, 0), l))
     limbs.append(legs[0])
     limbs.append(legs[1])
@@ -186,8 +225,8 @@ static func _brute(p: Dictionary) -> Dictionary:
     var extras: Array = p.get("extras", [])
     var root := Node3D.new()
     root.name = "Brute"
-    var b := LP.new()
-    var g := LP.new()
+    var b := _lp()
+    var g := _lp()
     var lean := -30.0
     b.frustum(Vector3(0, 0.86, 0), 0.16, 0.24, 0.16, 0.22, 0.15, 8, skin.darkened(0.12), Vector2.ZERO, 22.5, false)
     b.push(Vector3(0, 0.95, 0), Vector3(lean, 0, 0))
@@ -197,6 +236,16 @@ static func _brute(p: Dictionary) -> Dictionary:
         b.box(Vector3(0, 0.12 + float(k) * 0.12, -0.14 - float(k) * 0.01), Vector3(0.22 + float(k) * 0.05, 0.014, 0.014), skin.darkened(0.3))
     b.box(Vector3(0, 0.4, -0.15), Vector3(0.014, 0.46, 0.014), skin.darkened(0.3))
     b.blob(Vector3(0, 0.62, 0.12), Vector3(0.3, 0.2, 0.2), skin.darkened(0.06), 3, 8)
+    # pecs, abs, trapezius, back plates and a glowing vein network
+    for sx in [-1.0, 1.0]:
+        b.blob(Vector3(sx * 0.14, 0.5, -0.15), Vector3(0.14, 0.1, 0.07), skin.lightened(0.05), 3, 7)
+        b.blob(Vector3(sx * 0.2, 0.7, 0.0), Vector3(0.12, 0.09, 0.12), skin.darkened(0.03), 3, 7)
+        for k in range(3):
+            b.blob(Vector3(sx * 0.05, 0.13 + float(k) * 0.1, -0.17), Vector3(0.05, 0.04, 0.03), skin.darkened(0.04), 2, 6)
+        g.limb_between(Vector3(sx * 0.06, 0.62, -0.17), Vector3(sx * 0.14, 0.42, -0.19), 0.006, 0.004, glow_col.darkened(0.25), 4)
+        g.limb_between(Vector3(sx * 0.14, 0.42, -0.19), Vector3(sx * 0.1, 0.22, -0.19), 0.005, 0.003, glow_col.darkened(0.25), 4)
+    for k in range(4):
+        b.spike_dir(Vector3(0, 0.45 + float(k) * 0.13, 0.2), Vector3(0, 0.55 + float(k) * 0.14, 0.33), 0.03, bone, 4)
     b.frustum(Vector3(0, 0.7, -0.02), 0.12, 0.1, 0.09, 0.09, 0.08, 6, skin.darkened(0.05), Vector2(0, -0.04), 0.0, false)
     var hc := Vector3(0, 0.92, -0.1)
     b.blob(hc, Vector3(0.17, 0.2, 0.18), skin.lightened(0.14), 4, 9, 0.8)
@@ -219,11 +268,13 @@ static func _brute(p: Dictionary) -> Dictionary:
     var sh_z := 0.62 * sin(deg_to_rad(lean))
     var limbs: Array = []
     for sx in [1.0, -1.0]:
-        var a := LP.new()
+        var a := _lp()
         a.blob(Vector3.ZERO, Vector3(0.15, 0.13, 0.14), skin, 3, 7)
         a.limb_between(Vector3.ZERO, Vector3(0, -0.55, 0), 0.115, 0.09, skin)
         a.limb_between(Vector3(0, -0.55, 0), Vector3(0, -1.05, 0), 0.09, 0.07, skin.darkened(0.08))
         a.blob(Vector3(0, -1.1, 0), Vector3(0.09, 0.1, 0.08), skin.darkened(0.12), 3, 6)
+        a.blob(Vector3(0, -0.2, 0), Vector3(0.14, 0.17, 0.13), skin.lightened(0.04), 3, 7)
+        a.blob(Vector3(0, -0.55, 0), Vector3(0.1, 0.1, 0.1), skin.darkened(0.1), 2, 6)
         for c in range(4):
             var cx := (float(c) - 1.5) * 0.045
             a.spike_dir(Vector3(cx, -1.14, -0.02), Vector3(cx * 1.4, -1.58, -0.14), 0.026, bone, 4)
@@ -234,10 +285,12 @@ static func _brute(p: Dictionary) -> Dictionary:
         limbs.append(_limb("ArmPivot", Vector3(sx * 0.46, sh_y, sh_z), a, null, -sx * 0.12))
     var legs: Array = []
     for sx in [-1.0, 1.0]:
-        var l := LP.new()
+        var l := _lp()
         l.limb_between(Vector3.ZERO, Vector3(0, -0.5, 0), 0.13, 0.1, skin.darkened(0.06))
         l.limb_between(Vector3(0, -0.5, 0), Vector3(0, -0.92, 0), 0.09, 0.07, skin)
         l.box(Vector3(0, -0.93, -0.07), Vector3(0.2, 0.08, 0.34), skin.darkened(0.2))
+        l.blob(Vector3(0, -0.22, -0.02), Vector3(0.15, 0.2, 0.14), skin.lightened(0.03), 3, 7)
+        l.blob(Vector3(0, -0.5, -0.04), Vector3(0.1, 0.09, 0.1), skin.darkened(0.12), 2, 6)
         for t in range(3):
             l.spike_dir(Vector3((float(t) - 1.0) * 0.06, -0.93, -0.22), Vector3((float(t) - 1.0) * 0.07, -0.95, -0.34), 0.02, bone, 3)
         legs.append(_limb("LegPivot", Vector3(sx * 0.17, 0.95, 0), l))
@@ -254,8 +307,8 @@ static func _ogre(p: Dictionary) -> Dictionary:
     var glow_col: Color = p.get("glow", Color(1.0, 0.45, 0.1))
     var root := Node3D.new()
     root.name = "Ogre"
-    var b := LP.new()
-    var g := LP.new()
+    var b := _lp()
+    var g := _lp()
     b.frustum(Vector3(0, 0.92, 0), 0.2, 0.34, 0.22, 0.38, 0.24, 8, skin.darkened(0.08), Vector2.ZERO, 22.5, false)
     b.box(Vector3(0, 0.98, -0.24), Vector3(0.5, 0.42, 0.05), cloth)
     b.box(Vector3(0, 0.98, 0.24), Vector3(0.5, 0.42, 0.05), cloth.darkened(0.1))
@@ -267,6 +320,16 @@ static func _ogre(p: Dictionary) -> Dictionary:
     for sx in [-1.0, 1.0]:
         b.blob(Vector3(sx * 0.22, 0.42, -0.2), Vector3(0.22, 0.14, 0.12), skin.lightened(0.06), 3, 7)
     b.frustum(Vector3(0, 0.6, 0), 0.1, 0.16, 0.14, 0.13, 0.12, 6, skin.darkened(0.05))
+    b.blob(Vector3(0, 0.58, 0.0), Vector3(0.52, 0.13, 0.28), skin.darkened(0.02), 3, 9)
+    # belly folds, pecs, scars, studs and a bone-bead chain
+    for k in range(3):
+        b.blob(Vector3(0, 0.12 + float(k) * 0.1, -0.27), Vector3(0.34 - 0.03 * float(k), 0.055, 0.06), skin.darkened(0.1), 2, 8)
+    for sx in [-1.0, 1.0]:
+        b.blob(Vector3(sx * 0.2, 0.36, -0.27), Vector3(0.17, 0.12, 0.08), skin.lightened(0.05), 3, 8)
+        b.limb_between(Vector3(sx * 0.1, 0.5, -0.26), Vector3(sx * 0.3, 0.2, -0.28), 0.008, 0.008, Color(0.45, 0.16, 0.14), 4)
+    for k in range(9):
+        var ca2 := -1.2 + float(k) * 0.3
+        b.blob(Vector3(sin(ca2) * 0.24, 0.52 - absf(ca2) * 0.09, -0.24 + (1.0 - absf(ca2)) * -0.02), Vector3(0.035, 0.04, 0.035), bone, 2, 5)
     var hc := Vector3(0, 0.86, -0.08)
     b.blob(hc, Vector3(0.16, 0.18, 0.17), skin, 4, 8, 0.85)
     b.box(hc + Vector3(0, 0.04, -0.14), Vector3(0.3, 0.05, 0.05), skin.darkened(0.2))
@@ -275,6 +338,8 @@ static func _ogre(p: Dictionary) -> Dictionary:
     for sx in [-1.0, 1.0]:
         b.spike_dir(hc + Vector3(sx * 0.07, -0.1, -0.16), hc + Vector3(sx * 0.09, 0.02, -0.19), 0.025, bone, 4)
         b.spike_dir(hc + Vector3(sx * 0.1, 0.14, 0.0), hc + Vector3(sx * 0.2, 0.34, -0.06), 0.035, bone, 5)
+    for k in range(5):
+        b.blob(hc + Vector3(-0.1 + float(k) * 0.05, 0.1 + float(k % 2) * 0.02, -0.12), Vector3(0.016, 0.014, 0.012), skin.darkened(0.15), 2, 5)
     if extras.has("crown"):
         for k in range(8):
             var a := float(k) * TAU / 8.0
@@ -303,7 +368,7 @@ static func _ogre(p: Dictionary) -> Dictionary:
     var big_right := true
     var limbs: Array = []
     for sx in [1.0, -1.0]:
-        var a := LP.new()
+        var a := _lp()
         var giant: bool = (sx > 0.0 and big_right) or extras.has("both_fists")
         a.blob(Vector3.ZERO, Vector3(0.25, 0.2, 0.22), skin, 3, 7)
         if giant:
@@ -313,7 +378,7 @@ static func _ogre(p: Dictionary) -> Dictionary:
                 a.limb_between(Vector3(0, -1.0, 0), Vector3(0, -1.7, 0), 0.07, 0.06, Color(0.2, 0.15, 0.1), 6)
                 a.box(Vector3(0, -1.78, -0.05), Vector3(0.62, 0.42, 0.42), Color(0.16, 0.15, 0.15))
                 a.box(Vector3(0, -1.78, -0.05), Vector3(0.7, 0.1, 0.5), Color(0.1, 0.1, 0.1))
-                var gg := LP.new()
+                var gg := _lp()
                 gg.box(Vector3(0, -1.78, -0.272), Vector3(0.5, 0.26, 0.012), glow_col)
                 a.blob(Vector3(0, -1.0, 0), Vector3(0.16, 0.16, 0.16), skin.darkened(0.1), 2, 6)
                 limbs.append(_limb("ArmPivot", Vector3(sx * 0.7, 1.9, 0), a, gg, -sx * 0.1))
@@ -331,10 +396,12 @@ static func _ogre(p: Dictionary) -> Dictionary:
         limbs.append(_limb("ArmPivot", Vector3(sx * 0.7, 1.9, 0), a, null, -sx * 0.1))
     var legs: Array = []
     for sx in [-1.0, 1.0]:
-        var l := LP.new()
+        var l := _lp()
         l.limb_between(Vector3.ZERO, Vector3(0, -0.55, 0), 0.17, 0.13, skin.darkened(0.05))
         l.limb_between(Vector3(0, -0.55, 0), Vector3(0, -1.02, 0), 0.12, 0.095, skin.darkened(0.1))
         l.box(Vector3(0, -1.03, -0.07), Vector3(0.26, 0.1, 0.38), skin.darkened(0.2))
+        l.blob(Vector3(0, -0.2, -0.02), Vector3(0.2, 0.28, 0.18), skin.lightened(0.02), 3, 8)
+        l.blob(Vector3(0, -0.55, -0.06), Vector3(0.13, 0.11, 0.12), skin.darkened(0.14), 2, 6)
         for t in range(3):
             l.spike_dir(Vector3((float(t) - 1.0) * 0.08, -1.03, -0.24), Vector3((float(t) - 1.0) * 0.09, -1.05, -0.36), 0.03, bone, 3)
         legs.append(_limb("LegPivot", Vector3(sx * 0.22, 1.05, 0), l))

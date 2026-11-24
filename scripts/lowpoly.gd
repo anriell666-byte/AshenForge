@@ -14,6 +14,11 @@ var _xf := Transform3D.IDENTITY
 var _stack: Array[Transform3D] = []
 var _counter := 0
 var jitter := 0.07
+## Smooth mode: shared vertices get averaged normals, side counts are doubled and a
+## cheap ambient-occlusion tint darkens downward-facing surfaces. Boxes stay crisp.
+var smooth := false
+var _flat_depth := 0
+var _smooth_flags := PackedByteArray()
 
 static var _mat_cache: StandardMaterial3D
 static var _glow_cache := {}
@@ -71,11 +76,14 @@ func tri(a: Vector3, b: Vector3, c: Vector3, col: Color, center: Vector3) -> voi
         b = c
         c = t
         n = -n
-    var k := 1.0 + _hash_jitter() * jitter
+    var is_smooth := smooth and _flat_depth == 0
+    var k := 1.0 + _hash_jitter() * (jitter * 0.35 if is_smooth else jitter)
     var shaded := Color(clampf(col.r * k, 0.0, 1.0), clampf(col.g * k, 0.0, 1.0), clampf(col.b * k, 0.0, 1.0), col.a)
     verts.append(a); verts.append(b); verts.append(c)
     norms.append(n); norms.append(n); norms.append(n)
     cols.append(shaded); cols.append(shaded); cols.append(shaded)
+    var flag := 1 if is_smooth else 0
+    _smooth_flags.append(flag); _smooth_flags.append(flag); _smooth_flags.append(flag)
 
 func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color, center: Vector3) -> void:
     tri(a, b, c, col, center)
@@ -84,6 +92,8 @@ func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color, center: Ve
 ## Tapered prism. `base` is the centre of the bottom ring; the top ring sits
 ## `h` above it, shifted by `top_off` (x,z). Radii are elliptical.
 func frustum(base: Vector3, h: float, rx0: float, rz0: float, rx1: float, rz1: float, sides: int, col: Color, top_off: Vector2 = Vector2.ZERO, rot_deg: float = 0.0, caps: bool = true) -> void:
+    if smooth and sides < 12:
+        sides = mini(sides * 2, 14)
     var bottom: Array[Vector3] = []
     var top: Array[Vector3] = []
     var rot := deg_to_rad(rot_deg)
@@ -104,6 +114,11 @@ func frustum(base: Vector3, h: float, rx0: float, rz0: float, rx1: float, rz1: f
             tri(ct, top[i], top[j], col, centre)
 
 func box(center: Vector3, size: Vector3, col: Color) -> void:
+    _flat_depth += 1
+    _box_inner(center, size, col)
+    _flat_depth -= 1
+
+func _box_inner(center: Vector3, size: Vector3, col: Color) -> void:
     var h := size * 0.5
     var p := [
         center + Vector3(-h.x, -h.y, -h.z), center + Vector3(h.x, -h.y, -h.z),
@@ -119,6 +134,9 @@ func box(center: Vector3, size: Vector3, col: Color) -> void:
 
 ## Low-poly ellipsoid.
 func blob(center: Vector3, radii: Vector3, col: Color, rings: int = 3, segs: int = 7, squash_bottom: float = 1.0) -> void:
+    if smooth:
+        rings = mini(rings + 2, 8)
+        segs = mini(maxi(segs * 2 - 2, 10), 16)
     var grid: Array = []
     for r in range(rings + 1):
         var phi := PI * float(r) / float(rings)
@@ -195,9 +213,27 @@ func build_mesh() -> ArrayMesh:
         return mesh
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
+    var out_norms := norms
+    var out_cols := cols
+    if smooth:
+        out_norms = norms.duplicate()
+        out_cols = cols.duplicate()
+        var sums := {}
+        for i in range(verts.size()):
+            if _smooth_flags[i] == 1:
+                var key := Vector3i((verts[i] * 2000.0).round())
+                sums[key] = Vector3(sums.get(key, Vector3.ZERO)) + norms[i]
+        for i in range(verts.size()):
+            if _smooth_flags[i] == 1:
+                var key2 := Vector3i((verts[i] * 2000.0).round())
+                var n: Vector3 = (sums[key2] as Vector3).normalized()
+                out_norms[i] = n
+                var ao := 0.80 + 0.20 * (n.y * 0.5 + 0.5)
+                var c := cols[i]
+                out_cols[i] = Color(c.r * ao, c.g * ao, c.b * ao, c.a)
     arrays[Mesh.ARRAY_VERTEX] = verts
-    arrays[Mesh.ARRAY_NORMAL] = norms
-    arrays[Mesh.ARRAY_COLOR] = cols
+    arrays[Mesh.ARRAY_NORMAL] = out_norms
+    arrays[Mesh.ARRAY_COLOR] = out_cols
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     return mesh
 
