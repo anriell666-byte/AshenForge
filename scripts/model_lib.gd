@@ -178,7 +178,7 @@ static func _attach_head_parts(sk: Skeleton3D, o: Dictionary, female: bool, skin
     mesh.transform = HEAD_FIX
     att.add_child(mesh)
 
-static var HEAD_FIX: Transform3D = Transform3D(Basis.from_euler(Vector3(0, PI, 0)).scaled(Vector3(0.95, 0.95, 0.95)), Vector3(0, 0.09, 0.0))
+static var HEAD_FIX: Transform3D = Transform3D(Basis.from_euler(Vector3(0, PI, 0)).scaled(Vector3(0.9, 0.9, 0.9)), Vector3(0, 0.092, 0.0))
 
 # ------------------------------------------------------------------ monsters
 static func model_key_for(id: String) -> String:

@@ -17,6 +17,20 @@ var preview_model: Node3D
 var drag_idle: float = 0.0
 var rows: Dictionary = {}
 var cancel_button: Button
+var preview_cam: Camera3D
+var cam_pos_goal: Vector3 = Vector3(0, 1.05, -3.7)
+var cam_look_goal: Vector3 = Vector3(0, 0.93, 0)
+var cam_fov_goal: float = 34.0
+var tab_boxes: Dictionary = {}
+var tab_buttons: Dictionary = {}
+var current_tab: String = "body"
+
+const TABS := [
+    {"id": "body", "label": "ТЕЛО", "keys": ["gender", "build", "skin"], "zoom": false},
+    {"id": "face", "label": "ЛИЦО", "keys": ["face", "eyes", "brows", "nose", "mouth", "mark"], "zoom": true},
+    {"id": "hair", "label": "ВОЛОСЫ", "keys": ["hair_style", "hair_color", "beard", "glasses"], "zoom": true},
+    {"id": "clothes", "label": "ОДЕЖДА", "keys": ["top", "top_color", "bottom", "bottom_color", "shoes_color"], "zoom": false},
+]
 
 const ROWS := [
     {"key": "gender", "label": "Пол", "kind": "names", "names": HB.GENDER_NAMES},
@@ -133,7 +147,7 @@ func _build_ui() -> void:
     # options
     var right := VBoxContainer.new()
     right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    right.size_flags_stretch_ratio = 1.1
+    right.size_flags_stretch_ratio = 1.15
     right.add_theme_constant_override("separation", 10)
     split.add_child(right)
     var title := Label.new()
@@ -141,23 +155,44 @@ func _build_ui() -> void:
     title.add_theme_font_size_override("font_size", 26)
     title.add_theme_color_override("font_color", Color(0.93, 0.86, 0.66))
     right.add_child(title)
-    var hint := Label.new()
-    hint.text = "Перетащите модель, чтобы повернуть"
-    hint.add_theme_font_size_override("font_size", 14)
-    hint.add_theme_color_override("font_color", Color(0.6, 0.66, 0.6))
-    right.add_child(hint)
+    var tab_row := HBoxContainer.new()
+    tab_row.add_theme_constant_override("separation", 8)
+    right.add_child(tab_row)
+    for tab in TABS:
+        var tb := _make_button(String(tab["label"]), Vector2(0, 52))
+        tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        tb.pressed.connect(_set_tab.bind(String(tab["id"])))
+        tab_row.add_child(tb)
+        tab_buttons[String(tab["id"])] = tb
+    var panel := PanelContainer.new()
+    panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    panel.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.115, 0.11, 1.0)))
+    right.add_child(panel)
+    var pad := MarginContainer.new()
+    for side in ["left", "right", "top", "bottom"]:
+        pad.add_theme_constant_override("margin_" + side, 10)
+    panel.add_child(pad)
     var scroll := ScrollContainer.new()
     scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
     scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-    right.add_child(scroll)
-    var list := VBoxContainer.new()
-    list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    list.add_theme_constant_override("separation", 8)
-    scroll.add_child(list)
+    pad.add_child(scroll)
+    var holder := VBoxContainer.new()
+    holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    scroll.add_child(holder)
+    var def_by_key := {}
     for row_def in ROWS:
-        if ML.has_assets() and String(row_def["key"]) in ["nose", "mouth", "mark"]:
-            continue
-        _build_row(list, row_def)
+        def_by_key[String(row_def["key"])] = row_def
+    for tab in TABS:
+        var box := VBoxContainer.new()
+        box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        box.add_theme_constant_override("separation", 14)
+        holder.add_child(box)
+        tab_boxes[String(tab["id"])] = box
+        for key in tab["keys"]:
+            if ML.has_assets() and String(key) in ["nose", "mouth", "mark"]:
+                continue
+            _build_row(box, def_by_key[key])
+    _set_tab("body")
 
     var buttons := HBoxContainer.new()
     buttons.add_theme_constant_override("separation", 10)
@@ -214,11 +249,11 @@ func _build_preview_world() -> void:
     preview_viewport.add_child(floor_mesh)
     preview_pivot = Node3D.new()
     preview_viewport.add_child(preview_pivot)
-    var cam := Camera3D.new()
-    cam.fov = 34
-    preview_viewport.add_child(cam)
-    cam.position = Vector3(0, 1.05, -3.7)
-    cam.look_at(Vector3(0, 0.93, 0))
+    preview_cam = Camera3D.new()
+    preview_cam.fov = 34
+    preview_viewport.add_child(preview_cam)
+    preview_cam.position = cam_pos_goal
+    preview_cam.look_at(cam_look_goal)
 
 func _build_row(parent: Container, def: Dictionary) -> void:
     var row := VBoxContainer.new()
@@ -229,20 +264,20 @@ func _build_row(parent: Container, def: Dictionary) -> void:
     row.add_child(head)
     var label := Label.new()
     label.text = String(def["label"])
-    label.custom_minimum_size = Vector2(190, 0)
-    label.add_theme_font_size_override("font_size", 17)
+    label.custom_minimum_size = Vector2(170, 0)
+    label.add_theme_font_size_override("font_size", 19)
     label.add_theme_color_override("font_color", Color(0.82, 0.87, 0.8))
     head.add_child(label)
     var entry := {"row": row, "def": def}
     match String(def["kind"]):
         "names":
-            var prev := _make_button("◀", Vector2(54, 48))
+            var prev := _make_button("◀", Vector2(64, 56))
             var value := Label.new()
             value.custom_minimum_size = Vector2(190, 0)
             value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
             value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-            value.add_theme_font_size_override("font_size", 18)
-            var next := _make_button("▶", Vector2(54, 48))
+            value.add_theme_font_size_override("font_size", 20)
+            var next := _make_button("▶", Vector2(64, 56))
             prev.pressed.connect(_step.bind(key, -1))
             next.pressed.connect(_step.bind(key, 1))
             head.add_child(prev)
@@ -250,11 +285,11 @@ func _build_row(parent: Container, def: Dictionary) -> void:
             head.add_child(next)
             entry["value"] = value
         "toggle":
-            var toggle := CheckButton.new()
-            toggle.focus_mode = Control.FOCUS_NONE
-            toggle.custom_minimum_size = Vector2(90, 48)
+            var toggle := _make_button("Нет", Vector2(150, 56))
+            toggle.toggle_mode = true
             toggle.toggled.connect(func(on: bool) -> void:
                 opts[key] = on
+                toggle.text = "Да" if on else "Нет"
                 _rebuild_preview())
             head.add_child(toggle)
             entry["toggle"] = toggle
@@ -268,13 +303,38 @@ func _build_row(parent: Container, def: Dictionary) -> void:
             var colors: Array = def["colors"]
             for i in range(colors.size()):
                 var swatch := Button.new()
-                swatch.custom_minimum_size = Vector2(46, 46)
+                swatch.custom_minimum_size = Vector2(56, 56)
                 swatch.focus_mode = Control.FOCUS_NONE
                 swatch.pressed.connect(_pick.bind(key, i))
                 flow.add_child(swatch)
                 swatches.append(swatch)
             entry["swatches"] = swatches
     rows[key] = entry
+
+func _set_tab(id: String) -> void:
+    current_tab = id
+    for tab in TABS:
+        var tid := String(tab["id"])
+        (tab_boxes[tid] as Control).visible = tid == id
+        _style_tab(tab_buttons[tid] as Button, tid == id)
+        if tid == id:
+            if bool(tab["zoom"]):
+                cam_pos_goal = Vector3(0, 1.7, -1.75)
+                cam_look_goal = Vector3(0, 1.6, 0)
+                cam_fov_goal = 30.0
+            else:
+                cam_pos_goal = Vector3(0, 1.05, -3.7)
+                cam_look_goal = Vector3(0, 0.93, 0)
+                cam_fov_goal = 34.0
+
+func _style_tab(button: Button, active: bool) -> void:
+    var s := StyleBoxFlat.new()
+    s.bg_color = Color(0.36, 0.28, 0.15, 1.0) if active else Color(0.1, 0.13, 0.12, 0.95)
+    s.border_color = Color(0.95, 0.75, 0.4, 1.0) if active else Color(0.4, 0.48, 0.42, 0.9)
+    s.set_border_width_all(3 if active else 2)
+    s.set_corner_radius_all(12)
+    for state in ["normal", "hover", "pressed", "focus"]:
+        button.add_theme_stylebox_override(state, s)
 
 func _step(key: String, delta: int) -> void:
     var def: Dictionary = {}
@@ -307,7 +367,8 @@ func _refresh_all() -> void:
                 var names: Array = def["names"]
                 (entry["value"] as Label).text = String(names[int(opts[key])])
             "toggle":
-                (entry["toggle"] as CheckButton).set_pressed_no_signal(bool(opts[key]))
+                (entry["toggle"] as Button).set_pressed_no_signal(bool(opts[key]))
+                (entry["toggle"] as Button).text = "Да" if bool(opts[key]) else "Нет"
             "colors":
                 var colors: Array = def["colors"]
                 var swatches: Array = entry["swatches"]
@@ -328,7 +389,16 @@ func _process(delta: float) -> void:
     if not visible or preview_pivot == null:
         return
     drag_idle = maxf(0.0, drag_idle - delta)
-    if drag_idle <= 0.0:
+    if is_instance_valid(preview_cam):
+        var k := clampf(delta * 7.0, 0.0, 1.0)
+        preview_cam.position = preview_cam.position.lerp(cam_pos_goal, k)
+        preview_cam.fov = lerpf(preview_cam.fov, cam_fov_goal, k)
+        var look := Vector3(0, preview_cam.position.y - (cam_pos_goal.y - cam_look_goal.y), 0).lerp(cam_look_goal, 0.0)
+        preview_cam.look_at(cam_look_goal if preview_cam.position.distance_to(cam_pos_goal) < 0.01 else look.lerp(cam_look_goal, k))
+    if current_tab in ["face", "hair"]:
+        # face the player while editing the head
+        preview_pivot.rotation.y = lerp_angle(preview_pivot.rotation.y, 0.0, clampf(delta * 5.0, 0.0, 1.0)) if drag_idle <= 0.0 else preview_pivot.rotation.y
+    elif drag_idle <= 0.0:
         preview_pivot.rotation.y += delta * 0.45
 
 func _on_preview_input(event: InputEvent) -> void:
