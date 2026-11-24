@@ -1,0 +1,8 @@
+Third-party 3D assets (all CC0 1.0 / public domain, no attribution required; credit given as thanks)
+
+- Hero bodies "Superhero Male/Female" (Universal Base Characters) and animations
+  (Universal Animation Library) by Quaternius - https://quaternius.com (CC0)
+- Monsters Demon, BlueDemon, Orc (Ultimate Monsters) and CreepCreature by Quaternius (CC0)
+
+Files were obtained from public CC0 redistributions on GitHub
+(TM-fez/postapoc3-play, 511action/descent-3d-assets). Textures were left as shipped.

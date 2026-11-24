@@ -6,6 +6,7 @@ signal confirmed(options: Dictionary)
 signal cancelled
 
 const HB = preload("res://scripts/human_builder.gd")
+const ML = preload("res://scripts/model_lib.gd")
 const SAVE_PATH := "user://character.json"
 
 var opts: Dictionary = HB.default_options()
@@ -66,11 +67,14 @@ static func apply_to_player(player: Node, options: Dictionary) -> void:
     if old:
         player.remove_child(old)
         old.queue_free()
-    var built: Dictionary = HB.build(options)
+    var built: Dictionary = ML.build_hero(options) if ML.has_assets() else HB.build(options)
     var model: Node3D = built["model"]
     model.name = "DetailedSurvivor"
     player.add_child(model)
     player.set("animation_model", model)
+    player.set("anim_player", built.get("anim", null))
+    player.set("anim_clips", built.get("clips", {}))
+    player.set("anim_current", "")
     var parts: Array[Node3D] = []
     parts.assign(built["limbs"])
     player.set("animation_parts", parts)
@@ -151,6 +155,8 @@ func _build_ui() -> void:
     list.add_theme_constant_override("separation", 8)
     scroll.add_child(list)
     for row_def in ROWS:
+        if ML.has_assets() and String(row_def["key"]) in ["nose", "mouth", "mark"]:
+            continue
         _build_row(list, row_def)
 
     var buttons := HBoxContainer.new()
@@ -314,7 +320,7 @@ func _rebuild_preview() -> void:
     if preview_model and is_instance_valid(preview_model):
         preview_pivot.remove_child(preview_model)
         preview_model.queue_free()
-    var built: Dictionary = HB.build(opts)
+    var built: Dictionary = ML.build_hero(opts) if ML.has_assets() else HB.build(opts)
     preview_model = built["model"]
     preview_pivot.add_child(preview_model)
 

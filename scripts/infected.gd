@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## Set `monster_id` before adding the node to the tree.
 
 const MB = preload("res://scripts/monster_builder.gd")
+const ML = preload("res://scripts/model_lib.gd")
 const MD = preload("res://scripts/monster_data.gd")
 
 var monster_id: String = "walker"
@@ -38,6 +39,10 @@ var animation_parts: Array[Node3D] = []
 var limb_rest: Array[float] = []
 var swing_scale: float = 1.0
 var animation_model: Node3D
+var anim_player: AnimationPlayer = null
+var anim_clips: Dictionary = {}
+var anim_current: String = ""
+var skeletal: bool = false
 var health_root: Node3D
 var health_fill: MeshInstance3D
 var body_height: float = 1.8
@@ -66,7 +71,12 @@ func _ready() -> void:
     reach = float(data["reach"])
     attack_cooldown = 1.5 if is_boss else (1.0 if specials.has("long_reach") else 1.25)
     special_timer = randf_range(2.0, 4.0)
-    var built: Dictionary = MB.build(monster_id)
+    var built: Dictionary = ML.build_monster(monster_id)
+    if built.is_empty():
+        built = MB.build(monster_id)
+    skeletal = bool(built.get("skeletal", false))
+    anim_player = built.get("anim", null)
+    anim_clips = built.get("clips", {})
     animation_model = built["model"]
     animation_model.name = "MonsterModel"
     add_child(animation_model)
@@ -321,7 +331,33 @@ func _spawn_shock_ring(radius: float) -> void:
     tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.25)
     tween.tween_callback(ring.queue_free)
 
+func _play_clip(kind: String, speed_scale: float = 1.0, once: bool = false) -> void:
+    var clip: String = String(anim_clips.get(kind, ""))
+    if clip == "" or not anim_player.has_animation(clip):
+        return
+    if once:
+        if anim_current != kind or not anim_player.is_playing():
+            anim_player.play(clip, 0.1, speed_scale)
+            anim_current = kind
+        return
+    if anim_current != kind:
+        anim_player.play(clip, 0.2)
+        anim_current = kind
+    anim_player.speed_scale = speed_scale
+
+func _animate_skeletal() -> void:
+    var movement := Vector2(velocity.x, velocity.z).length()
+    if state == "windup" or state == "lunge" or attack_pose > 0.0:
+        _play_clip("attack", 1.3, true)
+    elif movement > 0.25:
+        _play_clip("run" if base_speed >= 2.2 else "walk", clampf(movement / 1.6, 0.7, 1.5))
+    else:
+        _play_clip("idle")
+
 func _animate() -> void:
+    if skeletal and is_instance_valid(anim_player):
+        _animate_skeletal()
+        return
     var movement := Vector2(velocity.x, velocity.z).length()
     var gait := sin(animation_clock * (6.0 + base_speed * 1.6))
     var amount := clampf(movement / maxf(0.1, speed), 0.0, 1.0)
@@ -402,6 +438,13 @@ func _die(exploded: bool = false) -> void:
         var world = game.get("world")
         if world != null:
             world.call("on_monster_killed", self)
+    if skeletal and is_instance_valid(anim_player) and String(anim_clips.get("death", "")) != "":
+        _play_clip("death", 1.0, true)
+        collision_layer = 0
+        collision_mask = 0
+        if is_instance_valid(health_root):
+            health_root.visible = false
+        await get_tree().create_timer(1.6).timeout
     queue_free()
 
 func _refresh_health_bar() -> void:

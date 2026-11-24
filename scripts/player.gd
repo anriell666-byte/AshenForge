@@ -25,6 +25,9 @@ var equipped_weapon: String = ""
 var equipped_tool: String = ""
 var body_collision: CollisionShape3D
 var animation_model: Node3D
+var anim_player: AnimationPlayer = null
+var anim_clips: Dictionary = {}
+var anim_current: String = ""
 var animation_parts: Array[Node3D] = []
 var animation_clock: float = 0.0
 var attack_animation: float = 0.0
@@ -140,6 +143,14 @@ func _animate_character(delta: float, input_amount: float, sprinting: bool) -> v
     if not is_instance_valid(animation_model):
         animation_model = get_node_or_null("DetailedSurvivor") as Node3D
     var moving := Vector2(velocity.x, velocity.z).length()
+    if is_instance_valid(anim_player):
+        var want := "idle"
+        if attack_animation > 0.0:
+            want = "attack"
+        elif moving > 0.3:
+            want = "run" if sprinting else "walk"
+        _play_clip(want, 0.6 if is_sneaking else clampf(moving / 3.0, 0.8, 1.3) if want == "walk" else 1.0)
+        return
     var gait := sin(animation_clock * (10.0 if sprinting else 7.0))
     var swing := clampf(moving / maxf(0.1, sprint_speed), 0.0, 1.0)
     if is_instance_valid(animation_model):
@@ -183,3 +194,17 @@ func perform_attack() -> void:
     attack_cooldown = float(main_game.call("attack_cooldown_value"))
     attack_animation = minf(0.32, attack_cooldown * 0.7)
     main_game.call("player_attack")
+
+func _play_clip(kind: String, speed_scale: float = 1.0) -> void:
+    var clip: String = String(anim_clips.get(kind, ""))
+    if clip == "" or not anim_player.has_animation(clip):
+        return
+    if kind == "attack":
+        if anim_current != "attack":
+            anim_player.play(clip, 0.08, 1.8)
+            anim_current = "attack"
+        return
+    if anim_current != kind:
+        anim_player.play(clip, 0.18)
+        anim_current = kind
+    anim_player.speed_scale = speed_scale
