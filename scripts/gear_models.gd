@@ -143,3 +143,75 @@ static func shoulder_pad(color: Color) -> Node3D:
     b.smooth = true
     b.blob(Vector3(0, 0, 0), Vector3(0.1, 0.06, 0.1), color, 3, 8)
     return b.to_node("Pad")
+
+## Hair for the hero in the skull frame (smooth, hugs the head). style: 1 short, 2 parting,
+## 3 undercut, 4 long, 5 ponytail, 6 mohawk.
+static func hair(style: int, color: Color) -> Node3D:
+    if style <= 0:
+        return null
+    var b = _new()
+    b.smooth = true
+    b.jitter = 0.04
+    var dark := color.darkened(0.18)
+    var light := color.lightened(0.1)
+    if style == 3 or style == 6:
+        # shaved sides read as stubble
+        b.blob(Vector3(0, 0.07, 0.015), Vector3(0.116, 0.09, 0.126), color.lerp(Color(0.18, 0.15, 0.13), 0.55), 3, 9)
+    else:
+        b.blob(Vector3(0, 0.08, 0.012), Vector3(0.12, 0.094, 0.13), color, 3, 9)
+        b.blob(Vector3(0, -0.005, 0.06), Vector3(0.102, 0.088, 0.075), dark, 3, 9)
+    match style:
+        1:
+            b.blob(Vector3(0, 0.108, -0.075), Vector3(0.1, 0.03, 0.045), color, 3, 8)
+            for k in range(-3, 4):
+                b.spike_dir(Vector3(float(k) * 0.028, 0.115, -0.085), Vector3(float(k) * 0.03, 0.082 - absf(float(k)) * 0.004, -0.112 + absf(float(k)) * 0.01), 0.018, color, 4)
+            for sx in [-1.0, 1.0]:
+                b.blob(Vector3(sx * 0.108, 0.01, -0.025), Vector3(0.012, 0.045, 0.034), dark, 2, 6)
+        2:
+            b.blob(Vector3(0.0, 0.118, -0.02), Vector3(0.1, 0.04, 0.1), light, 3, 8)
+            for k in range(5):
+                var x0 := -0.03 + float(k) * 0.02
+                b.spike_dir(Vector3(x0 - 0.05, 0.135, -0.03), Vector3(x0 + 0.075, 0.075 - float(k) * 0.004, -0.098 - float(k) * 0.003), 0.024, color if k % 2 == 0 else light, 5)
+            for sx in [-1.0, 1.0]:
+                b.blob(Vector3(sx * 0.108, 0.0, -0.02), Vector3(0.012, 0.05, 0.034), dark, 2, 6)
+        3:
+            b.blob(Vector3(0, 0.115, -0.015), Vector3(0.08, 0.06, 0.105), color, 3, 8)
+            b.blob(Vector3(0, 0.14, 0.0), Vector3(0.052, 0.04, 0.095), light, 2, 8)
+            b.blob(Vector3(0, 0.112, -0.08), Vector3(0.07, 0.03, 0.04), color, 2, 7)
+        4:
+            b.blob(Vector3(0, -0.1, 0.082), Vector3(0.115, 0.15, 0.065), dark, 3, 9)
+            b.blob(Vector3(0, -0.23, 0.085), Vector3(0.1, 0.11, 0.055), color.darkened(0.1), 3, 8)
+            b.blob(Vector3(0, 0.108, -0.07), Vector3(0.105, 0.032, 0.05), color, 3, 8)
+            for sx in [-1.0, 1.0]:
+                b.blob(Vector3(sx * 0.108, -0.07, 0.0), Vector3(0.026, 0.115, 0.06), color, 2, 8)
+                b.spike_dir(Vector3(sx * 0.02, 0.118, -0.075), Vector3(sx * 0.1, 0.0, -0.085), 0.02, color, 4)
+        5:
+            b.blob(Vector3(0, 0.108, -0.072), Vector3(0.1, 0.03, 0.045), color, 3, 8)
+            b.limb_between(Vector3(0, 0.08, 0.1), Vector3(0, -0.02, 0.19), 0.045, 0.04, color, 7)
+            b.limb_between(Vector3(0, -0.02, 0.19), Vector3(0, -0.2, 0.2), 0.04, 0.018, dark, 7)
+            b.blob(Vector3(0, 0.07, 0.115), Vector3(0.03, 0.03, 0.03), Color(0.7, 0.2, 0.2), 2, 6)
+        6:
+            for k in range(9):
+                var z := -0.1 + float(k) * 0.025
+                var h := 0.12 - absf(float(k) - 4.0) * 0.01
+                b.spike_dir(Vector3(0, 0.14, z), Vector3(0, 0.14 + h, z + 0.012), 0.032, color if k % 2 == 0 else light, 5)
+    return b.to_node("Hair")
+
+## Wounds, blood and a missing patch of hair on a zombie head (skull frame).
+static func zombie_head(seed_value: int, blood: Color) -> Node3D:
+    var b = _new()
+    b.smooth = true
+    var side := 1.0 if seed_value % 2 == 0 else -1.0
+    # blood around the mouth and chin
+    b.blob(Vector3(0, -0.07, -0.085), Vector3(0.05, 0.032, 0.02), blood, 2, 7)
+    b.blob(Vector3(0.012, -0.11, -0.075), Vector3(0.012, 0.04, 0.012), blood, 2, 5)
+    b.blob(Vector3(-0.025, -0.1, -0.07), Vector3(0.009, 0.03, 0.01), blood, 2, 5)
+    # cheek wound with a bone showing
+    b.blob(Vector3(side * 0.068, -0.012, -0.09), Vector3(0.034, 0.028, 0.012), blood.darkened(0.25), 2, 7)
+    b.spike_dir(Vector3(side * 0.07, -0.02, -0.1), Vector3(side * 0.062, 0.0, -0.118), 0.008, Color(0.85, 0.82, 0.7), 4)
+    # sunken dark eye sockets
+    for sx in [-1.0, 1.0]:
+        b.blob(Vector3(sx * 0.044, 0.016, -0.094), Vector3(0.027, 0.02, 0.012), Color(0.1, 0.07, 0.07), 2, 6)
+    # scalp wound
+    b.blob(Vector3(-side * 0.05, 0.1, -0.03), Vector3(0.04, 0.02, 0.05), blood.darkened(0.15), 2, 6)
+    return b.to_node("ZombieHead")

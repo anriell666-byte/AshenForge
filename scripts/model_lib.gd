@@ -163,12 +163,16 @@ static func build_hero(raw_opts: Dictionary, gear: Dictionary = {}) -> Dictionar
         _attach_head_parts(sk, o, female, skin, head_covered)
         _attach_gear(sk, gear, extra)
     _apply_face(node, o)
+    var clips := HERO_CLIPS.duplicate()
+    var held_data: Dictionary = ID.item(String(gear.get("weapon", "")))
+    if not held_data.is_empty() and String(held_data.get("kind", "")) == "melee":
+        clips["attack"] = "Sword_Attack"
     var holder := _wrap(node, height, 1.78 if not female else 1.7)
     var bw: float = [0.92, 1.0, 1.1][int(o["build"])]
     holder.scale = Vector3(bw, 1.0, bw)
     holder.name = "Human"
     ap.play("Idle")
-    return {"model": holder, "limbs": [], "rest": [], "anim": ap, "clips": HERO_CLIPS, "height": 1.8, "radius": 0.4, "swing": 1.0, "skeletal": true}
+    return {"model": holder, "limbs": [], "rest": [], "anim": ap, "clips": clips, "height": 1.8, "radius": 0.4, "swing": 1.0, "skeletal": true}
 
 ## Face shape = head bone scale; eye and eyebrow colours = material tints.
 static func _apply_face(node: Node3D, o: Dictionary) -> void:
@@ -189,22 +193,20 @@ static func _attach_head_parts(sk: Skeleton3D, o: Dictionary, female: bool, skin
     var head = LPc.new()
     head.smooth = true
     var hair: Color = HB.HAIR[int(o["hair_color"])]
+    var hair_node: Node3D = null
     if not hide_hair:
-        HB._add_hair(head, int(o["hair_style"]), hair, 0.0)
+        hair_node = GM.hair(int(o["hair_style"]), hair)
     if not female:
         HB._add_beard(head, int(o["beard"]), hair, skin, 0.0)
     if bool(o["glasses"]):
         HB._add_glasses(head, 0.0)
+    if hair_node != null:
+        _bone_attach(sk, "Head", hair_node, HEAD_FIX, "HairMesh")
     if head.is_empty():
         return
-    var att := BoneAttachment3D.new()
-    att.name = "HeadParts"
-    att.bone_name = "Head"
-    sk.add_child(att)
     var mesh: Node3D = head.to_node("HeadMesh")
     # our heads face -Z with the origin in the middle of the skull; the bone's axes are tuned in HEAD_FIX
-    mesh.transform = HEAD_FIX
-    att.add_child(mesh)
+    _bone_attach(sk, "Head", mesh, HEAD_FIX, "HeadParts")
 
 static func _bone_attach(sk: Skeleton3D, bone: String, node: Node3D, xf: Transform3D, label: String) -> void:
     if sk.find_bone(bone) < 0:
@@ -270,7 +272,7 @@ static func build_monster(id: String) -> Dictionary:
         var scene := load(HERO_FEMALE if female else HERO_MALE) as PackedScene
         node = scene.instantiate()
         var skin: Color = p.get("skin", Color(0.6, 0.67, 0.56))
-        _tint(node, skin.darkened(0.1), 0.85)
+        _tint(node, Color(0.62, 0.74, 0.6).lerp(skin, 0.3).darkened(0.08), 0.92)
         height = _rest_height(node)
         ap = AnimationPlayer.new()
         ap.name = "AnimationPlayer"
@@ -278,6 +280,7 @@ static func build_monster(id: String) -> Dictionary:
         node.add_child(ap)
         ap.root_node = ap.get_path_to(node)
         _add_zombie_clothes(node, p)
+        _zombie_details(node, id, p)
         clips = HERO_CLIPS
         target = 1.74
     else:
@@ -294,6 +297,8 @@ static func build_monster(id: String) -> Dictionary:
         var tint_col: Color = p.get("accent", p.get("skin", Color.WHITE))
         _tint(node, tint_col.lightened(0.25), 0.28)
     var holder := _wrap(node, height, target)
+    if key == "hero":
+        node.rotation.x = 0.2    # hunched, leaning towards the victim
     holder.name = "Monster_" + key
     holder.scale = Vector3(s, s, s)
     if ap != null and ap.has_animation(clips["idle"]):
@@ -301,16 +306,45 @@ static func build_monster(id: String) -> Dictionary:
     var rad: float = {"demon": 0.55, "blue": 0.4, "orc": 0.8, "creep": 0.6, "hero": 0.4}[key]
     return {"model": holder, "limbs": [], "rest": [], "anim": ap, "clips": clips, "height": target * s, "radius": rad * s, "swing": 1.0, "skeletal": true}
 
+## Glowing eyes, wounds on the face and ratty hair for the infected.
+static func _zombie_details(node: Node3D, id: String, p: Dictionary) -> void:
+    var sk := _skeleton_of(node)
+    var boss: bool = bool(p.get("boss", false)) or bool(p.get("mini", false))
+    var eye_col := Color(1.0, 0.2, 0.12) if boss else Color(1.0, 0.82, 0.25)
+    var eyes := node.find_child("Eyes", true, false) as MeshInstance3D
+    if eyes != null and eyes.mesh != null:
+        for i in range(eyes.mesh.get_surface_count()):
+            var mat := StandardMaterial3D.new()
+            mat.albedo_color = eye_col.darkened(0.2)
+            mat.emission_enabled = true
+            mat.emission = eye_col
+            mat.emission_energy_multiplier = 1.6
+            eyes.set_surface_override_material(i, mat)
+    if sk == null:
+        return
+    var h := id.hash()
+    var blood := Color(0.36, 0.04, 0.04)
+    _bone_attach(sk, "Head", GM.zombie_head(h, blood), HEAD_FIX, "ZombieHead")
+    if h % 3 != 0:
+        var hair_col := Color(0.2, 0.17, 0.14).lerp(Color(0.5, 0.5, 0.48), float(h % 5) / 8.0)
+        var hair_node := GM.hair(1 + (h % 2) * 3, hair_col)
+        if hair_node != null:
+            _bone_attach(sk, "Head", hair_node, HEAD_FIX, "RattyHair")
+
 static func _add_zombie_clothes(node: Node3D, p: Dictionary) -> void:
-    add_clothes(node, 1, p.get("shirt", Color(0.5, 0.5, 0.45)), 0, p.get("pants", Color(0.3, 0.3, 0.27)), Color(0.14, 0.12, 0.1))
+    add_clothes(node, 1, Color(p.get("shirt", Color(0.5, 0.5, 0.45))).darkened(0.35), 0, Color(p.get("pants", Color(0.3, 0.3, 0.27))).darkened(0.25), Color(0.14, 0.12, 0.1), {"torn": true})
     var body: MeshInstance3D = null
     for mi in node.find_children("*", "MeshInstance3D", true, false):
         if String(mi.name).to_lower().begins_with("superhero"):
             body = mi
     if body != null:
         var blood := Color(0.34, 0.04, 0.04)
-        for spec in [[["spine_02", "spine_03"], 1.12, 1.3], [["lowerarm_l"], 0.0, 9.0], [["thigh_r"], 0.5, 0.8]]:
-            var l := _layer(body, "Blood", spec[0], spec[1], spec[2], 0.021, blood, 0.6)
+        var specs := [
+            [["spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r"], 0.95, 1.5, 0.45],
+            [["upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r"], 0.0, 9.0, 0.7],
+            [["thigh_l", "thigh_r", "calf_l", "calf_r"], 0.0, 1.0, 0.75]]
+        for spec in specs:
+            var l := _layer(body, "Blood", spec[0], spec[1], spec[2], 0.024, blood, 0.5, 0.0, spec[3])
             if l != null:
                 body.get_parent().add_child(l)
 
@@ -322,7 +356,7 @@ const SHOE_BONES := ["foot_l", "foot_r", "ball_l", "ball_r", "calf_l", "calf_r"]
 
 ## Builds a clothing layer as a copy of a part of the body mesh, pushed out along the normals.
 ## `bones`: dominant-bone whitelist, `ymin/ymax`: rest-pose height window, `grow`: thickness.
-static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float, ymax: float, grow: float, color: Color, rough: float = 0.92) -> MeshInstance3D:
+static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float, ymax: float, grow: float, color: Color, rough: float = 0.92, rag: float = 0.0, splat: float = 99.0) -> MeshInstance3D:
     var mesh := mi.mesh as ArrayMesh
     if mesh == null or mi.skin == null:
         return null
@@ -360,6 +394,16 @@ static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float,
         var b: int = index[t + 1] if index.size() > 0 else t + 1
         var c: int = index[t + 2] if index.size() > 0 else t + 2
         if ok[a] == 1 and ok[b] == 1 and ok[c] == 1:
+            if splat < 90.0:
+                var sc: Vector3 = (verts[a] + verts[b] + verts[c]) / 3.0
+                var f := sin(sc.x * 11.0 + 1.3) * sin(sc.y * 8.0 + 0.7) + sin(sc.z * 10.0 + 2.1) * sin(sc.y * 6.0 + sc.x * 3.0)
+                if f <= splat:
+                    continue
+            if rag > 0.0:
+                var cen: Vector3 = (verts[a] + verts[b] + verts[c]) / 3.0
+                var noise := fposmod(sin(cen.x * 91.7 + cen.z * 47.3 + cen.y * 131.1) * 43758.5453, 1.0)
+                if cen.y < ymin + rag * noise:
+                    continue
             tris.append(a); tris.append(b); tris.append(c)
     if tris.size() == 0:
         return null
@@ -402,10 +446,11 @@ static func add_clothes(node: Node3D, top_style: int, top_col: Color, bottom_sty
     if top_style != 0:
         sleeve.append_array(SLEEVE_BONES)
     var jacket: bool = top_style == 2
-    layers.append(_layer(body, "Shirt", sleeve, 0.93, 1.5, 0.02 if jacket else 0.015, top_col.darkened(0.08) if jacket else top_col))
+    var torn: bool = bool(extra.get("torn", false))
+    layers.append(_layer(body, "Shirt", sleeve, 0.93, 1.5, 0.02 if jacket else 0.015, top_col.darkened(0.08) if jacket else top_col, 0.92, 0.2 if torn else 0.0))
     # pants or shorts
     var pmin := 0.0 if bottom_style == 0 else 0.5
-    layers.append(_layer(body, "Pants", PANT_BONES, pmin, 1.0, 0.013, pants_col))
+    layers.append(_layer(body, "Pants", PANT_BONES, pmin, 1.0, 0.013, pants_col, 0.92, 0.45 if torn else 0.0))
     layers.append(_layer(body, "Shoes", SHOE_BONES, 0.0, 0.27 if bool(extra.get("boots", false)) else 0.1, 0.013 if bool(extra.get("boots", false)) else 0.01, shoe_col, 0.7))
     if extra.has("vest"):
         var v: Dictionary = extra["vest"]
