@@ -76,12 +76,12 @@ static func save_options(options: Dictionary) -> void:
         file.close()
 
 ## Replaces the player's visible model with one built from `options`.
-static func apply_to_player(player: Node, options: Dictionary) -> void:
+static func apply_to_player(player: Node, options: Dictionary, gear: Dictionary = {}) -> void:
     var old := player.get_node_or_null("DetailedSurvivor")
     if old:
         player.remove_child(old)
         old.queue_free()
-    var built: Dictionary = ML.build_hero(options) if ML.has_assets() else HB.build(options)
+    var built: Dictionary = ML.build_hero(options, gear) if ML.has_assets() else HB.build(options)
     var model: Node3D = built["model"]
     model.name = "DetailedSurvivor"
     player.add_child(model)

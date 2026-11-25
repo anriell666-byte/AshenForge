@@ -61,6 +61,26 @@ const ITEMS := {
         "needs_bench": true, "desc": "Лечит 70 HP."},
 }
 
+## Wearable gear. slot: head | body | legs | feet | back. armor = share of damage absorbed,
+## carry = extra backpack capacity (kg). look/color drive the 3D model on the hero.
+const GEAR_SLOTS := ["head", "body", "legs", "feet", "back"]
+const SLOT_LABELS := {"head": "Голова", "body": "Тело", "legs": "Ноги", "feet": "Обувь", "back": "Спина", "weapon": "Оружие", "tool": "Инструмент"}
+const GEAR := {
+    "cap": {"name": "Кепка", "slot": "head", "tier": 1, "armor": 0.02, "look": "cap", "color": Color(0.32, 0.38, 0.27), "cost": {"cloth": 2}, "desc": "Защищает от солнца и чуть-чуть от укусов."},
+    "helmet": {"name": "Строительная каска", "slot": "head", "tier": 2, "armor": 0.08, "look": "helmet", "color": Color(0.88, 0.7, 0.14), "cost": {"scrap": 5, "cloth": 1}, "needs_bench": true, "desc": "Жёсткая каска смягчает удары по голове."},
+    "riot_helmet": {"name": "Шлем штурмовика", "slot": "head", "tier": 3, "armor": 0.14, "look": "riot", "color": Color(0.16, 0.18, 0.2), "cost": {"scrap": 8, "plastic": 4}, "needs_bench": true, "desc": "Тяжёлый шлем с забралом."},
+    "hoodie": {"name": "Тёплая куртка", "slot": "body", "tier": 1, "armor": 0.03, "look": "jacket", "color": Color(0.45, 0.32, 0.2), "cost": {"cloth": 4}, "desc": "Плотная ткань: немного защищает."},
+    "leather_jacket": {"name": "Кожаная куртка", "slot": "body", "tier": 2, "armor": 0.08, "look": "jacket", "color": Color(0.2, 0.15, 0.12), "cost": {"cloth": 4, "scrap": 2}, "needs_bench": true, "desc": "Прочная кожа держит когти."},
+    "vest": {"name": "Бронежилет", "slot": "body", "tier": 2, "armor": 0.15, "look": "vest", "color": Color(0.2, 0.24, 0.22), "cost": {"scrap": 8, "cloth": 3, "plastic": 2}, "needs_bench": true, "desc": "Пластины на груди и спине."},
+    "plate_armor": {"name": "Пластинчатая броня", "slot": "body", "tier": 3, "armor": 0.24, "look": "plate", "color": Color(0.5, 0.52, 0.55), "cost": {"scrap": 14, "plastic": 4, "fuel": 2}, "needs_bench": true, "desc": "Самая крепкая броня. Чертёж носит Мясник."},
+    "work_pants": {"name": "Рабочие штаны", "slot": "legs", "tier": 1, "armor": 0.02, "look": "pants", "color": Color(0.22, 0.3, 0.42), "cost": {"cloth": 3}, "desc": "Простые штаны из плотной ткани."},
+    "cargo_pants": {"name": "Штаны с накладками", "slot": "legs", "tier": 2, "armor": 0.06, "look": "pants", "color": Color(0.28, 0.3, 0.2), "cost": {"cloth": 3, "scrap": 2}, "needs_bench": true, "desc": "Накладки на коленях и бёдрах."},
+    "boots": {"name": "Крепкие ботинки", "slot": "feet", "tier": 1, "armor": 0.02, "look": "boots", "color": Color(0.24, 0.17, 0.11), "cost": {"cloth": 2, "scrap": 1}, "desc": "Высокие ботинки."},
+    "steel_boots": {"name": "Ботинки со сталью", "slot": "feet", "tier": 2, "armor": 0.06, "look": "boots", "color": Color(0.12, 0.12, 0.13), "cost": {"scrap": 5, "cloth": 1}, "needs_bench": true, "desc": "Стальные носки и накладки."},
+    "pack_small": {"name": "Походный рюкзак", "slot": "back", "tier": 1, "armor": 0.0, "carry": 10.0, "look": "pack_small", "color": Color(0.35, 0.3, 0.16), "cost": {"cloth": 4, "wood": 1}, "desc": "+10 кг к грузоподъёмности."},
+    "pack_big": {"name": "Туристический рюкзак", "slot": "back", "tier": 2, "armor": 0.0, "carry": 25.0, "look": "pack_big", "color": Color(0.7, 0.25, 0.14), "cost": {"cloth": 8, "plastic": 3, "scrap": 2}, "needs_bench": true, "desc": "+25 кг к грузоподъёмности."},
+}
+
 ## Blueprint -> item. Key is the monster id that drops it.
 const BLUEPRINT_SOURCES := {
     "mb_gravedigger": "fire_axe",
@@ -69,11 +89,22 @@ const BLUEPRINT_SOURCES := {
     "boss_foreman": "sledgehammer",
     "mb_nurse": "medkit",
     "boss_ripper": "shock_baton",
+    "mb_butcher": "plate_armor",
     "boss_fistking": "flamethrower",
 }
 
 static func item(id: String) -> Dictionary:
+    if GEAR.has(id):
+        return GEAR[id]
     return ITEMS.get(id, {})
+
+static func is_gear(id: String) -> bool:
+    return GEAR.has(id)
+
+static func all_ids() -> Array:
+    var ids: Array = ITEMS.keys()
+    ids.append_array(GEAR.keys())
+    return ids
 
 static func blueprint_for(item_id: String) -> String:
     for monster_id in BLUEPRINT_SOURCES:

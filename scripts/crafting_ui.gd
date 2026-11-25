@@ -17,6 +17,7 @@ const TABS := [
     {"id": "weapon", "label": "Оружие"},
     {"id": "tool", "label": "Инструменты"},
     {"id": "consumable", "label": "Расходники"},
+    {"id": "wear", "label": "Одежда"},
     {"id": "gear", "label": "Снаряжение"},
 ]
 
@@ -161,12 +162,13 @@ func _refresh() -> void:
 
 func _build_recipes(slot: String) -> void:
     var ids: Array[String] = []
-    for id in ID.ITEMS:
-        if String(ID.ITEMS[id]["slot"]) == slot:
+    for id in ID.all_ids():
+        var item_slot := String(ID.item(id)["slot"])
+        if (slot == "wear" and ID.GEAR_SLOTS.has(item_slot)) or item_slot == slot:
             ids.append(id)
     ids.sort_custom(func(a: String, b: String) -> bool:
-        var ta := int(ID.ITEMS[a]["tier"])
-        var tb := int(ID.ITEMS[b]["tier"])
+        var ta := int(ID.item(a)["tier"])
+        var tb := int(ID.item(b)["tier"])
         return ta < tb or (ta == tb and a < b))
     for id in ids:
         _recipe_card(id)
@@ -180,6 +182,10 @@ func _stats_line(data: Dictionary) -> String:
         parts.append("Прочность %d" % roundi(float(data["durability"])))
     if data.has("heal"):
         parts.append("Лечение %d" % roundi(float(data["heal"])))
+    if float(data.get("armor", 0.0)) > 0.0:
+        parts.append("Броня %d%%" % roundi(float(data["armor"]) * 100.0))
+    if float(data.get("carry", 0.0)) > 0.0:
+        parts.append("Рюкзак +%d кг" % roundi(float(data["carry"])))
     if data.has("harvest"):
         parts.append("Разборка ×%.1f" % float(data["harvest"]))
     if data.has("mining") and float(data["mining"]) >= 1.0:
@@ -291,7 +297,8 @@ func _build_gear() -> void:
     var any := false
     var ids: Array[String] = []
     for id in progress.owned:
-        ids.append(id)
+        if not ID.is_gear(id):
+            ids.append(id)
     ids.sort()
     for id in ids:
         any = true

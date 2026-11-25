@@ -8,6 +8,8 @@ const ExpansionScript = preload("res://scripts/expansion.gd")
 const VisualUpgradeScript = preload("res://scripts/visual_upgrade.gd")
 const ProgressScript = preload("res://scripts/progress.gd")
 const CraftingScript = preload("res://scripts/crafting_ui.gd")
+const InventoryScript = preload("res://scripts/inventory_ui.gd")
+const StorageScript = preload("res://scripts/storage_ui.gd")
 const QuestsScript = preload("res://scripts/quests.gd")
 const WorldScript = preload("res://scripts/world_manager.gd")
 const JournalScript = preload("res://scripts/journal_ui.gd")
@@ -50,6 +52,8 @@ var expansion
 var character_creator
 var progress
 var crafting
+var inventory_ui
+var storage_ui
 var quests
 var world
 var journal
@@ -331,6 +335,16 @@ func _setup_progression() -> void:
     crafting.set_script(CraftingScript)
     add_child(crafting)
     crafting.call("setup", self, progress)
+    inventory_ui = CanvasLayer.new()
+    inventory_ui.name = "InventoryWindow"
+    inventory_ui.set_script(InventoryScript)
+    add_child(inventory_ui)
+    inventory_ui.call("setup", self, progress)
+    storage_ui = CanvasLayer.new()
+    storage_ui.name = "StorageWindow"
+    storage_ui.set_script(StorageScript)
+    add_child(storage_ui)
+    storage_ui.call("setup", self)
     progress.changed.connect(_on_progress_changed)
 
 func _build_workbench() -> void:
@@ -449,7 +463,14 @@ func _setup_character_creator() -> void:
         character_creator.call("open", CreatorScript.load_saved(), false)
 
 func _on_appearance_confirmed(options: Dictionary) -> void:
-    CreatorScript.apply_to_player(player, options)
+    CreatorScript.apply_to_player(player, options, progress.visual_gear() if progress else {})
+
+func max_carry() -> float:
+    return carry_capacity + (progress.carry_bonus() if progress else 0.0)
+
+func refresh_player_model() -> void:
+    if player and progress:
+        CreatorScript.apply_to_player(player, CreatorScript.load_saved(), progress.visual_gear())
 
 func _build_ui() -> void:
     var layer := CanvasLayer.new()
@@ -641,9 +662,8 @@ func _build_inventory_panel(layer: CanvasLayer) -> void:
     _refresh_inventory_ui()
 
 func toggle_inventory() -> void:
-    if inventory_panel:
-        inventory_panel.visible = not inventory_panel.visible
-        _refresh_inventory_ui()
+    if inventory_ui:
+        inventory_ui.call("toggle")
 
 func _refresh_inventory_ui() -> void:
     if not inventory_label or not player:
@@ -652,7 +672,7 @@ func _refresh_inventory_ui() -> void:
     for key in ID.RES_ORDER:
         if int(inventory.get(key, 0)) > 0 or ["wood", "scrap", "plastic", "cloth", "food", "medicine"].has(key):
             lines.append("%s: %d" % [ID.RES_LABELS[key], int(inventory.get(key, 0))])
-    lines.append("Вес: %.1f / %.1f кг" % [_inventory_weight(), carry_capacity])
+    lines.append("Вес: %.1f / %.1f кг" % [_inventory_weight(), max_carry()])
     if progress:
         var stats: Dictionary = progress.attack_stats()
         lines.append("Оружие: %s  •  урон %d" % [String(stats["name"]), roundi(_current_weapon_damage())])
@@ -663,6 +683,8 @@ func _refresh_inventory_ui() -> void:
     upgrade_info.text = "Навыки становятся доступны за опыт. Каждые 100 XP — новый уровень."
     for button in upgrade_buttons:
         button.disabled = skill_points <= 0
+    if inventory_ui and inventory_ui.visible:
+        inventory_ui.call("refresh")
 
 
 func _build_chest_panel(layer: CanvasLayer) -> void:
@@ -730,7 +752,7 @@ func _withdraw_one(resource: String) -> void:
         show_message("В сундуке нет этого ресурса.")
         return
     var unit_weight := float(resource_weights.get(resource, 0.5))
-    if _inventory_weight() + unit_weight > carry_capacity:
+    if _inventory_weight() + unit_weight > max_carry():
         show_message("В рюкзаке нет места.")
         return
     chest_inventory[resource] -= 1
@@ -752,7 +774,7 @@ func _store_all_resources() -> void:
 func _take_all_resources() -> void:
     for key in chest_inventory:
         var unit_weight := float(resource_weights.get(key, 0.5))
-        var free_weight := maxf(0.0, carry_capacity - _inventory_weight())
+        var free_weight := maxf(0.0, max_carry() - _inventory_weight())
         var can_take := int(floor(free_weight / unit_weight)) if unit_weight > 0.0 else int(chest_inventory[key])
         var amount := mini(int(chest_inventory[key]), can_take)
         if amount > 0:
@@ -924,9 +946,8 @@ func interact() -> void:
         crafting.call("open")
         return
     if player.global_position.distance_to(camp_chest_position) < 2.1:
-        if chest_panel:
-            chest_panel.visible = not chest_panel.visible
-            _refresh_chest_ui()
+        if storage_ui:
+            storage_ui.call("open")
         return
     if player.global_position.distance_to(camp_position) < 3.5:
         player.health = player.max_health
@@ -1154,7 +1175,7 @@ func add_resource(resource: String, amount: int) -> bool:
     if not inventory.has(resource):
         inventory[resource] = 0
     var unit_weight := float(resource_weights.get(resource, 0.5))
-    if _inventory_weight() + unit_weight * amount > carry_capacity:
+    if _inventory_weight() + unit_weight * amount > max_carry():
         show_message("Рюкзак перегружен. Освободи место.")
         return false
     inventory[resource] += amount

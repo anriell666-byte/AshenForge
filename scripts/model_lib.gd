@@ -10,6 +10,8 @@ const HERO_ANIMS := "res://assets/models/hero/anims.glb"
 const MONSTER_DIR := "res://assets/models/monsters/"
 const HB = preload("res://scripts/human_builder.gd")
 const MD = preload("res://scripts/monster_data.gd")
+const GM = preload("res://scripts/gear_models.gd")
+const ID = preload("res://scripts/items_data.gd")
 
 ## kind (or id) -> model file, target height at scale 1.0 and animation clip names
 const MONSTER_MODELS := {
@@ -117,7 +119,7 @@ static func _wrap(node: Node3D, height: float, target: float) -> Node3D:
     return holder
 
 # ------------------------------------------------------------------ hero
-static func build_hero(raw_opts: Dictionary) -> Dictionary:
+static func build_hero(raw_opts: Dictionary, gear: Dictionary = {}) -> Dictionary:
     var o := HB.sanitize(raw_opts)
     var female: bool = int(o["gender"]) == 1
     var scene := load(HERO_FEMALE if female else HERO_MALE) as PackedScene
@@ -132,9 +134,34 @@ static func build_hero(raw_opts: Dictionary) -> Dictionary:
     node.add_child(ap)
     ap.root_node = ap.get_path_to(node)
     var sk := _skeleton_of(node)
-    add_clothes(node, int(o["top"]), HB.CLOTH[int(o["top_color"])], int(o["bottom"]), HB.PANTS[int(o["bottom_color"])], HB.SHOES[int(o["shoes_color"])])
+    var top_style := int(o["top"])
+    var top_col: Color = HB.CLOTH[int(o["top_color"])]
+    var bottom_style := int(o["bottom"])
+    var pants_col: Color = HB.PANTS[int(o["bottom_color"])]
+    var shoe_col: Color = HB.SHOES[int(o["shoes_color"])]
+    var extra := {}
+    var body_gear: Dictionary = ID.item(String(gear.get("body", "")))
+    if not body_gear.is_empty():
+        var look := String(body_gear["look"])
+        if look == "jacket":
+            top_style = 2
+            top_col = body_gear["color"]
+        else:
+            extra["vest"] = {"color": body_gear["color"], "plate": look == "plate"}
+    var legs_gear: Dictionary = ID.item(String(gear.get("legs", "")))
+    if not legs_gear.is_empty():
+        bottom_style = 0
+        pants_col = legs_gear["color"]
+    var feet_gear: Dictionary = ID.item(String(gear.get("feet", "")))
+    if not feet_gear.is_empty():
+        shoe_col = feet_gear["color"]
+        extra["boots"] = true
+    add_clothes(node, top_style, top_col, bottom_style, pants_col, shoe_col, extra)
+    var head_gear: Dictionary = ID.item(String(gear.get("head", "")))
+    var head_covered: bool = not head_gear.is_empty() and String(head_gear["look"]) != "cap"
     if sk != null:
-        _attach_head_parts(sk, o, female, skin)
+        _attach_head_parts(sk, o, female, skin, head_covered)
+        _attach_gear(sk, gear, extra)
     _apply_face(node, o)
     var holder := _wrap(node, height, 1.78 if not female else 1.7)
     var bw: float = [0.92, 1.0, 1.1][int(o["build"])]
@@ -155,14 +182,15 @@ static func _apply_face(node: Node3D, o: Dictionary) -> void:
     _tint_named(node, "Eyebrows", HB.HAIR[int(o["hair_color"])], 0.9)
 
 ## Hair, beard and glasses are the procedural low-poly pieces, glued to the Head bone.
-static func _attach_head_parts(sk: Skeleton3D, o: Dictionary, female: bool, skin: Color) -> void:
+static func _attach_head_parts(sk: Skeleton3D, o: Dictionary, female: bool, skin: Color, hide_hair: bool = false) -> void:
     if sk.find_bone("Head") < 0:
         return
     var LPc = preload("res://scripts/lowpoly.gd")
     var head = LPc.new()
     head.smooth = true
     var hair: Color = HB.HAIR[int(o["hair_color"])]
-    HB._add_hair(head, int(o["hair_style"]), hair, 0.0)
+    if not hide_hair:
+        HB._add_hair(head, int(o["hair_style"]), hair, 0.0)
     if not female:
         HB._add_beard(head, int(o["beard"]), hair, skin, 0.0)
     if bool(o["glasses"]):
@@ -177,6 +205,44 @@ static func _attach_head_parts(sk: Skeleton3D, o: Dictionary, female: bool, skin
     # our heads face -Z with the origin in the middle of the skull; the bone's axes are tuned in HEAD_FIX
     mesh.transform = HEAD_FIX
     att.add_child(mesh)
+
+static func _bone_attach(sk: Skeleton3D, bone: String, node: Node3D, xf: Transform3D, label: String) -> void:
+    if sk.find_bone(bone) < 0:
+        node.free()
+        return
+    var att := BoneAttachment3D.new()
+    att.name = label
+    att.bone_name = bone
+    sk.add_child(att)
+    node.transform = xf
+    att.add_child(node)
+
+## Weapon in the right hand, helmet/cap on the head, backpack on the back, pads on the shoulders.
+static func _attach_gear(sk: Skeleton3D, gear: Dictionary, extra: Dictionary) -> void:
+    var held := String(gear.get("weapon", ""))
+    if held == "":
+        held = String(gear.get("tool", ""))
+    if held != "":
+        var item := GM.hand_item(held)
+        if item != null:
+            _bone_attach(sk, "hand_r", item, HAND_FIX, "HeldItem")
+    var hg: Dictionary = ID.item(String(gear.get("head", "")))
+    if not hg.is_empty():
+        var h := GM.head_item(String(hg["look"]), hg["color"])
+        if h != null:
+            _bone_attach(sk, "Head", h, HEAD_FIX, "HeadGear")
+    var bg: Dictionary = ID.item(String(gear.get("back", "")))
+    if not bg.is_empty():
+        var p := GM.back_item(String(bg["look"]), bg["color"])
+        if p != null:
+            _bone_attach(sk, "spine_03", p, BACK_FIX, "BackItem")
+    if extra.has("vest") and bool(extra["vest"].get("plate", false)):
+        for side in ["l", "r"]:
+            var pad := GM.shoulder_pad(extra["vest"]["color"])
+            _bone_attach(sk, "upperarm_" + side, pad, Transform3D(Basis.IDENTITY, Vector3(0, 0.02, 0)), "Pad_" + side)
+
+static var HAND_FIX: Transform3D = Transform3D(Basis.from_euler(Vector3(-0.7, 0, PI)), Vector3(0, 0.0, 0))
+static var BACK_FIX: Transform3D = Transform3D(Basis.from_euler(Vector3(0, PI, 0)), Vector3(0, 0.0, -0.13))
 
 static var HEAD_FIX: Transform3D = Transform3D(Basis.from_euler(Vector3(0, PI, 0)).scaled(Vector3(0.9, 0.9, 0.9)), Vector3(0, 0.092, 0.0))
 
@@ -322,7 +388,7 @@ static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float,
     inst.transform = mi.transform
     return inst
 
-static func add_clothes(node: Node3D, top_style: int, top_col: Color, bottom_style: int, pants_col: Color, shoe_col: Color) -> void:
+static func add_clothes(node: Node3D, top_style: int, top_col: Color, bottom_style: int, pants_col: Color, shoe_col: Color, extra: Dictionary = {}) -> void:
     var body: MeshInstance3D = null
     for mi in node.find_children("*", "MeshInstance3D", true, false):
         if String(mi.name).to_lower().begins_with("superhero"):
@@ -340,7 +406,10 @@ static func add_clothes(node: Node3D, top_style: int, top_col: Color, bottom_sty
     # pants or shorts
     var pmin := 0.0 if bottom_style == 0 else 0.5
     layers.append(_layer(body, "Pants", PANT_BONES, pmin, 1.0, 0.013, pants_col))
-    layers.append(_layer(body, "Shoes", SHOE_BONES, 0.0, 0.1, 0.01, shoe_col, 0.7))
+    layers.append(_layer(body, "Shoes", SHOE_BONES, 0.0, 0.27 if bool(extra.get("boots", false)) else 0.1, 0.013 if bool(extra.get("boots", false)) else 0.01, shoe_col, 0.7))
+    if extra.has("vest"):
+        var v: Dictionary = extra["vest"]
+        layers.append(_layer(body, "Vest", ["spine_01", "spine_02", "spine_03"], 0.95, 1.48, 0.03 if bool(v["plate"]) else 0.024, v["color"], 0.55 if bool(v["plate"]) else 0.9))
     for l in layers:
         if l != null:
             parent.add_child(l)

@@ -181,6 +181,8 @@ func rotate_camera(amount: float) -> void:
 func take_damage(amount: float) -> void:
     if invulnerable > 0.0:
         return
+    if main_game and main_game.get("progress") != null:
+        amount *= 1.0 - float(main_game.progress.call("armor_total"))
     health = maxf(0.0, health - amount)
     invulnerable = 0.7
     if main_game:

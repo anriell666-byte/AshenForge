@@ -13,6 +13,7 @@ var owned := {}          # id -> {"dur": float, "level": int}
 var stock := {}          # consumable id -> count
 var equipped_weapon: String = ""
 var equipped_tool: String = ""
+var equipment := {}      # gear slot -> item id
 var blueprints: Array = []
 var defeated: Array = []
 var quests := {}         # quest id -> {"state": "active"|"done", "count": int}
@@ -46,6 +47,41 @@ func _sync_player() -> void:
     if game and is_instance_valid(game.player):
         game.player.equipped_weapon = equipped_weapon
         game.player.equipped_tool = equipped_tool
+    var key := visual_signature()
+    if key != _last_visual:
+        _last_visual = key
+        if game and game.has_method("refresh_player_model"):
+            game.call_deferred("refresh_player_model")
+
+var _last_visual := ""
+
+func visual_gear() -> Dictionary:
+    var out := equipment.duplicate()
+    out["weapon"] = equipped_weapon
+    out["tool"] = equipped_tool
+    return out
+
+func visual_signature() -> String:
+    return JSON.stringify(visual_gear())
+
+func armor_total() -> float:
+    var total := 0.0
+    for slot in equipment:
+        total += float(ID.item(String(equipment[slot])).get("armor", 0.0))
+    return clampf(total, 0.0, 0.6)
+
+func carry_bonus() -> float:
+    var total := 0.0
+    for slot in equipment:
+        total += float(ID.item(String(equipment[slot])).get("carry", 0.0))
+    return total
+
+func equipped_in(slot: String) -> String:
+    if slot == "weapon":
+        return equipped_weapon
+    if slot == "tool":
+        return equipped_tool
+    return String(equipment.get(slot, ""))
 
 func _migrate_old_save() -> void:
     # Saves from before the workbench stored crafted flags in the main save.
@@ -78,12 +114,15 @@ func add_item(id: String, auto_equip: bool = true) -> void:
         stock[id] = int(stock.get(id, 0)) + 1
         mark_dirty()
         return
-    owned[id] = {"dur": float(data["durability"]), "level": 1}
+    owned[id] = {"dur": float(data.get("durability", 1.0)), "level": 1}
     if auto_equip:
-        if String(data["slot"]) == "weapon":
+        var s := String(data["slot"])
+        if s == "weapon":
             equipped_weapon = id
-        elif String(data["slot"]) == "tool":
+        elif s == "tool":
             equipped_tool = id
+        elif ID.GEAR_SLOTS.has(s) and String(equipment.get(s, "")) == "":
+            equipment[s] = id
     mark_dirty()
 
 func equip(id: String) -> void:
@@ -94,13 +133,17 @@ func equip(id: String) -> void:
         equipped_weapon = id
     elif slot == "tool":
         equipped_tool = id
+    elif ID.GEAR_SLOTS.has(slot):
+        equipment[slot] = id
     mark_dirty()
 
 func unequip(slot: String) -> void:
     if slot == "weapon":
         equipped_weapon = ""
-    else:
+    elif slot == "tool":
         equipped_tool = ""
+    else:
+        equipment.erase(slot)
     mark_dirty()
 
 func cycle(slot: String) -> String:
@@ -251,7 +294,7 @@ func save_state() -> void:
     if file == null:
         return
     file.store_string(JSON.stringify({
-        "owned": owned, "stock": stock, "weapon": equipped_weapon, "tool": equipped_tool,
+        "owned": owned, "stock": stock, "weapon": equipped_weapon, "tool": equipped_tool, "equipment": equipment,
         "blueprints": blueprints, "defeated": defeated, "quests": quests,
         "notes": notes_read, "unlocked": unlocked,
     }))
@@ -268,7 +311,7 @@ func _load() -> void:
     var saved_owned = parsed.get("owned", {})
     if saved_owned is Dictionary:
         for id in saved_owned:
-            if ID.ITEMS.has(id) and saved_owned[id] is Dictionary:
+            if (ID.ITEMS.has(id) or ID.GEAR.has(id)) and saved_owned[id] is Dictionary:
                 owned[id] = {"dur": float(saved_owned[id].get("dur", 1.0)), "level": clampi(int(saved_owned[id].get("level", 1)), 1, 3)}
     var saved_stock = parsed.get("stock", {})
     if saved_stock is Dictionary:
@@ -281,6 +324,11 @@ func _load() -> void:
         equipped_weapon = ""
     if not owned.has(equipped_tool):
         equipped_tool = ""
+    var saved_eq = parsed.get("equipment", {})
+    if saved_eq is Dictionary:
+        for slot in saved_eq:
+            if ID.GEAR_SLOTS.has(slot) and owned.has(String(saved_eq[slot])):
+                equipment[slot] = String(saved_eq[slot])
     var bp = parsed.get("blueprints", [])
     if bp is Array:
         blueprints = bp.duplicate()
