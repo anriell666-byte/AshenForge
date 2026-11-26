@@ -6,3 +6,5 @@ Third-party 3D assets (all CC0 1.0 / public domain, no attribution required; cre
 
 Files were obtained from public CC0 redistributions on GitHub
 (TM-fez/postapoc3-play, 511action/descent-3d-assets). Textures were left as shipped.
+
+assets/models/bosses: AFTERFALL boss blockout models (Butcher, Titan, Distorted, Carrier), provided by the project owner.

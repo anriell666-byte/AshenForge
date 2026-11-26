@@ -371,6 +371,10 @@ static func build_monster(id: String) -> Dictionary:
     if not has_assets():
         return {}
     var p: Dictionary = MD.get_monster(id)
+    if BOSS_MODELS.has(id):
+        var boss := _build_boss(id, p)
+        if not boss.is_empty():
+            return boss
     var key := model_key_for(id)
     var s: float = float(p.get("scale", 1.0))
     var node: Node3D
@@ -420,6 +424,106 @@ static func build_monster(id: String) -> Dictionary:
         ap.play(clips["idle"])
     var rad: float = {"demon": 0.55, "blue": 0.4, "orc": 0.8, "creep": 0.6, "hero": 0.4}[key]
     return {"model": holder, "limbs": [], "rest": [], "anim": ap, "clips": clips, "height": target * s, "radius": rad * s, "swing": 1.0, "skeletal": true}
+
+
+# ------------------------------------------------------------------ bosses (blockout, unrigged)
+const BOSS_DIR := "res://assets/models/bosses/"
+const BOSS_MODELS := {
+    "mb_butcher": {"file": "afterfall_butcher.glb", "height": 1.85, "radius": 0.7},
+    "boss_elder": {"file": "afterfall_carrier.glb", "height": 1.8, "radius": 0.8},
+    "boss_matriarch": {"file": "afterfall_distorted.glb", "height": 2.0, "radius": 0.6},
+    "boss_ripper": {"file": "afterfall_titan.glb", "height": 1.75, "radius": 0.9},
+}
+const ARM_WORDS := ["shoulder", "upper_arm", "elbow", "forearm", "bracer", "hand", "claw", "cleaver", "arm"]
+const LEG_WORDS := ["thigh", "knee", "shin", "boot", "foot", "hock", "leg"]
+
+static func _word_in(n: String, words: Array) -> bool:
+    for w in words:
+        if n.contains(w):
+            return true
+    return false
+
+## Parts are authored in world space (Z up, facing -Y). Arms and legs are grouped into
+## pivots at the shoulder/hip so the usual limb swing animation works.
+static func _build_boss(id: String, p: Dictionary) -> Dictionary:
+    var def: Dictionary = BOSS_MODELS[id]
+    var path: String = BOSS_DIR + String(def["file"])
+    if not ResourceLoader.exists(path):
+        return {}
+    var src: Node = (load(path) as PackedScene).instantiate()
+    var rot := Basis.from_euler(Vector3(-PI / 2.0, PI, 0.0))
+    var body := Node3D.new()
+    body.name = "BossBody"
+    var groups := {"arm_a": [], "arm_b": [], "leg_a": [], "leg_b": []}
+    var minz := INF
+    var maxz := -INF
+    for mi in src.find_children("*", "MeshInstance3D", true, false):
+        var m := mi as MeshInstance3D
+        var ab: AABB = m.get_aabb()
+        var c: Vector3 = m.transform * ab.get_center()
+        minz = minf(minz, (m.transform * ab).position.z)
+        maxz = maxf(maxz, (m.transform * ab).end.z)
+        var n := String(m.name).to_lower()
+        var side := "a" if c.x < 0.0 else "b"
+        var key := ""
+        if absf(c.x) > 0.12:
+            if _word_in(n, LEG_WORDS) and not n.contains("shoulder"):
+                key = "leg_" + side
+            elif _word_in(n, ARM_WORDS):
+                key = "arm_" + side
+        var mat := StandardMaterial3D.new()
+        var src_mat := m.get_active_material(0)
+        if src_mat is StandardMaterial3D:
+            mat = (src_mat as StandardMaterial3D).duplicate()
+        mat.vertex_color_use_as_albedo = true
+        mat.roughness = 0.9
+        mat.metallic = 0.0
+        mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+        if n.contains("eye"):
+            mat.emission_enabled = true
+            mat.emission = Color(1.0, 0.25, 0.12)
+            mat.emission_energy_multiplier = 1.8
+        m.set_surface_override_material(0, mat)
+        m.get_parent().remove_child(m)
+        m.transform = Transform3D.IDENTITY
+        if key == "":
+            m.transform = Transform3D(rot, Vector3.ZERO)
+            body.add_child(m)
+        else:
+            groups[key].append(m)
+    var limbs: Array = []
+    var rests: Array = []
+    for key in ["arm_a", "arm_b", "leg_a", "leg_b"]:
+        var parts: Array = groups[key]
+        var pivot_model := Vector3.ZERO
+        var bb := AABB()
+        var first := true
+        for m in parts:
+            var a: AABB = (m as MeshInstance3D).get_aabb()
+            bb = a if first else bb.merge(a)
+            first = false
+        if not first:
+            pivot_model = Vector3(bb.get_center().x, bb.get_center().y, bb.end.z - (0.18 if key.begins_with("arm") else 0.12))
+        var pivot := Node3D.new()
+        pivot.name = "Limb_" + key
+        pivot.position = rot * pivot_model
+        body.add_child(pivot)
+        for m in parts:
+            (m as MeshInstance3D).transform = Transform3D(rot, rot * (-pivot_model))
+            pivot.add_child(m)
+        limbs.append(pivot)
+        rests.append(0.0)
+    src.free()
+    var raw_h: float = maxz - minz
+    var target: float = float(def["height"])
+    var holder := Node3D.new()
+    holder.name = "Monster_boss"
+    holder.add_child(body)
+    body.scale = Vector3.ONE * (target / raw_h)
+    body.position.y = -minz * (target / raw_h)
+    var sc: float = float(p.get("scale", 1.0))
+    holder.scale = Vector3(sc, sc, sc)
+    return {"model": holder, "limbs": limbs, "rest": rests, "height": target * sc, "radius": float(def["radius"]) * sc, "swing": 1.0}
 
 ## Glowing eyes, wounds on the face and ratty hair for the infected.
 static func _zombie_details(node: Node3D, id: String, p: Dictionary) -> void:
