@@ -118,6 +118,115 @@ static func _wrap(node: Node3D, height: float, target: float) -> Node3D:
     holder.add_child(node)
     return holder
 
+
+# ------------------------------------------------------------------ faceting
+## Skinned meshes are simplified (meshoptimizer LODs) and then flat-shaded, which gives
+## the chunky hand-painted low-poly look. Simplified meshes are cached per source mesh.
+const HERO_LOD := 1
+const MONSTER_LOD := 1
+static var _dec_cache := {}
+static var _flat_cache := {}
+
+static func _is_detail_mesh(mi: MeshInstance3D) -> bool:
+    var n := String(mi.name)
+    return n.begins_with("Eye") or n.begins_with("Eyebrow")
+
+static func _decimate(node: Node, lod: int, gkey: String = "") -> void:
+    for mi in node.find_children("*", "MeshInstance3D", true, false):
+        var m := mi as MeshInstance3D
+        if m.skin == null or not (m.mesh is ArrayMesh) or _is_detail_mesh(m):
+            continue
+        var src := m.mesh as ArrayMesh
+        var key := ("%s|%s|%d" % [gkey, m.name, lod]) if gkey != "" else ("%d_%d" % [src.get_instance_id(), lod])
+        var mats: Array = []
+        for si in range(src.get_surface_count()):
+            mats.append(m.get_active_material(si))
+        if not _dec_cache.has(key):
+            var im := ImporterMesh.new()
+            for s in range(src.get_surface_count()):
+                im.add_surface(src.surface_get_primitive_type(s), src.surface_get_arrays(s), [], {}, src.surface_get_material(s), "s%d" % s)
+            im.generate_lods(25.0, 60.0, [])
+            var out := ArrayMesh.new()
+            for s in range(im.get_surface_count()):
+                var full: Array = src.surface_get_arrays(s)
+                var arr := []
+                arr.resize(Mesh.ARRAY_MAX)
+                for ch in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS, Mesh.ARRAY_INDEX]:
+                    arr[ch] = full[ch]
+                var n: int = im.get_surface_lod_count(s)
+                if n > 0 and arr[Mesh.ARRAY_VERTEX].size() == im.get_surface_arrays(s)[Mesh.ARRAY_VERTEX].size():
+                    arr[Mesh.ARRAY_INDEX] = im.get_surface_lod_indices(s, clampi(lod, 0, n - 1))
+                out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+                out.surface_set_material(s, src.surface_get_material(s))
+            _dec_cache[key] = out
+        m.mesh = _dec_cache[key]
+        for si in range(mats.size()):
+            m.set_surface_override_material(si, mats[si])
+
+static func _flat_copy(src: ArrayMesh) -> ArrayMesh:
+    var out := ArrayMesh.new()
+    for s in range(src.get_surface_count()):
+        var arr: Array = src.surface_get_arrays(s)
+        var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+        var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+        var uvs = arr[Mesh.ARRAY_TEX_UV]
+        var bones = arr[Mesh.ARRAY_BONES]
+        var wts = arr[Mesh.ARRAY_WEIGHTS]
+        var cols = arr[Mesh.ARRAY_COLOR]
+        var has_b: bool = bones != null and bones.size() > 0
+        var per: int = (bones.size() / v.size()) if has_b else 0
+        var count: int = idx.size() if idx.size() > 0 else v.size()
+        var nv := PackedVector3Array(); var nn := PackedVector3Array(); var nu := PackedVector2Array()
+        var nb := PackedInt32Array(); var nw := PackedFloat32Array(); var nc := PackedColorArray()
+        for t in range(0, count, 3):
+            var a: int = idx[t] if idx.size() > 0 else t
+            var b: int = idx[t + 1] if idx.size() > 0 else t + 1
+            var c: int = idx[t + 2] if idx.size() > 0 else t + 2
+            var nrm: Vector3 = (v[b] - v[a]).cross(v[c] - v[a]).normalized()
+            for k in [a, b, c]:
+                nv.append(v[k]); nn.append(nrm)
+                if uvs != null and uvs.size() > 0:
+                    nu.append(uvs[k])
+                if cols != null and cols.size() > 0:
+                    nc.append(cols[k])
+                if has_b:
+                    for j in range(per):
+                        nb.append(bones[k * per + j]); nw.append(wts[k * per + j])
+        var a2 := []
+        a2.resize(Mesh.ARRAY_MAX)
+        a2[Mesh.ARRAY_VERTEX] = nv
+        a2[Mesh.ARRAY_NORMAL] = nn
+        if nu.size() > 0: a2[Mesh.ARRAY_TEX_UV] = nu
+        if nc.size() > 0: a2[Mesh.ARRAY_COLOR] = nc
+        if nb.size() > 0:
+            a2[Mesh.ARRAY_BONES] = nb
+            a2[Mesh.ARRAY_WEIGHTS] = nw
+        out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a2)
+        out.surface_set_material(s, src.surface_get_material(s))
+    return out
+
+static func _flatten(node: Node) -> void:
+    for mi in node.find_children("*", "MeshInstance3D", true, false):
+        var m := mi as MeshInstance3D
+        if m.skin == null or not (m.mesh is ArrayMesh) or _is_detail_mesh(m):
+            continue
+        var src := m.mesh as ArrayMesh
+        var key: int = src.get_instance_id()
+        var fmats: Array = []
+        for si in range(src.get_surface_count()):
+            fmats.append(m.get_active_material(si))
+        if _flat_cache.has(key):
+            m.mesh = _flat_cache[key]
+            for si in range(fmats.size()):
+                m.set_surface_override_material(si, fmats[si])
+            continue
+        var flat := _flat_copy(src)
+        if _dec_cache.values().has(src):
+            _flat_cache[key] = flat
+        m.mesh = flat
+        for si in range(fmats.size()):
+            m.set_surface_override_material(si, fmats[si])
+
 # ------------------------------------------------------------------ hero
 static func build_hero(raw_opts: Dictionary, gear: Dictionary = {}) -> Dictionary:
     var o := HB.sanitize(raw_opts)
@@ -163,6 +272,8 @@ static func build_hero(raw_opts: Dictionary, gear: Dictionary = {}) -> Dictionar
         _attach_head_parts(sk, o, female, skin, head_covered)
         _attach_gear(sk, gear, extra)
     _apply_face(node, o)
+    _decimate(node, HERO_LOD, "h%d_%d_%d_%s_%s" % [int(female), top_style, bottom_style, str(extra.keys()), str(extra.get("vest", {}).get("plate", false))])
+    _flatten(node)
     var clips := HERO_CLIPS.duplicate()
     var held_data: Dictionary = ID.item(String(gear.get("weapon", "")))
     if not held_data.is_empty() and String(held_data.get("kind", "")) == "melee":
@@ -281,6 +392,8 @@ static func build_monster(id: String) -> Dictionary:
         ap.root_node = ap.get_path_to(node)
         _add_zombie_clothes(node, p)
         _zombie_details(node, id, p)
+        _decimate(node, HERO_LOD, "z_" + id + str(female))
+        _flatten(node)
         clips = HERO_CLIPS
         target = 1.74
     else:
@@ -290,6 +403,8 @@ static func build_monster(id: String) -> Dictionary:
             return {}
         node = (load(path) as PackedScene).instantiate()
         ap = node.find_child("AnimationPlayer", true, false) as AnimationPlayer
+        _decimate(node, MONSTER_LOD)
+        _flatten(node)
         height = _rest_height(node)
         clips = def["clips"]
         target = float(def["height"])
@@ -393,7 +508,7 @@ static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float,
         var a: int = index[t] if index.size() > 0 else t
         var b: int = index[t + 1] if index.size() > 0 else t + 1
         var c: int = index[t + 2] if index.size() > 0 else t + 2
-        if ok[a] == 1 and ok[b] == 1 and ok[c] == 1:
+        if ok[a] + ok[b] + ok[c] >= 2:
             if splat < 90.0:
                 var sc: Vector3 = (verts[a] + verts[b] + verts[c]) / 3.0
                 var f := sin(sc.x * 11.0 + 1.3) * sin(sc.y * 8.0 + 0.7) + sin(sc.z * 10.0 + 2.1) * sin(sc.y * 6.0 + sc.x * 3.0)
@@ -409,7 +524,7 @@ static func _layer(mi: MeshInstance3D, label: String, bones: Array, ymin: float,
         return null
     var out_verts := PackedVector3Array(verts)
     for v in range(out_verts.size()):
-        out_verts[v] = verts[v] + norms[v] * grow
+        out_verts[v] = verts[v] + norms[v] * (grow + 0.009)
     var out := []
     out.resize(Mesh.ARRAY_MAX)
     out[Mesh.ARRAY_VERTEX] = out_verts
