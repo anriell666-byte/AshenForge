@@ -15,7 +15,26 @@ func setup(owner) -> void:
     _spawn_wildlife()
     _add_controls()
     _refresh_status()
+var _facades: Array = []
+var _facade_timer := 0.0
+func _update_facades(delta: float) -> void:
+    _facade_timer -= delta
+    if _facade_timer > 0.0 or not is_instance_valid(game.player):
+        return
+    _facade_timer = 0.15
+    if _facades.is_empty():
+        for n in game.find_children("FacadeUpper", "Node3D", true, false):
+            _facades.append(n)
+    var p: Vector3 = game.player.global_position
+    for f in _facades:
+        if not is_instance_valid(f):
+            continue
+        var house: Node3D = f.get_parent()
+        var local: Vector3 = p - house.global_position
+        var inside: bool = absf(local.x) < 5.6 and local.z > -5.0 and local.z < 5.2
+        f.visible = not inside
 func _process(delta: float) -> void:
+    _update_facades(delta)
     for animal in animals:
         if not is_instance_valid(animal): continue
         var data: Dictionary = animal_data.get(animal.get_instance_id(), {})
@@ -79,40 +98,6 @@ func _make_animal(label: String, pos: Vector3, tint: Color, speed: float, hp: in
     animals.append(animal)
     animal_data[animal.get_instance_id()] = {"hp":hp,"meat":meat,"speed":speed,"timer":1.0,"direction":Vector3.RIGHT}
 func _add_controls() -> void:
-    var layers: Array[Node] = game.find_children("*", "CanvasLayer", true, false)
-    if layers.is_empty(): return
-    var layer := layers[0] as CanvasLayer
-    var left: Button = game._make_ui_button(layer,"⟲",Vector2.ZERO,Vector2(58,52))
-    game._place_bottom_right(left,300,24)
-    left.pressed.connect(func(): game.player.rotate_camera(-PI/4.0))
-    var right: Button = game._make_ui_button(layer,"⟳",Vector2.ZERO,Vector2(58,52))
-    game._place_bottom_right(right,364,24)
-    right.pressed.connect(func(): game.player.rotate_camera(PI/4.0))
-    var sneak: Button = game._make_ui_button(layer,"SNEAK",Vector2.ZERO,Vector2(92,48))
-    game._place_bottom_right(sneak,300,88)
-    sneak.toggle_mode = true
-    sneak.toggled.connect(_toggle_stealth)
-    var craft: Button = game._make_ui_button(layer,"CRAFT",Vector2(135,118),Vector2(105,48))
-    craft.pressed.connect(_toggle_craft)
-    craft_panel = PanelContainer.new()
-    craft_panel.position = Vector2(250,150)
-    craft_panel.custom_minimum_size = Vector2(300,280)
-    craft_panel.visible = false
-    layer.add_child(craft_panel)
-    var col := VBoxContainer.new()
-    craft_panel.add_child(col)
-    var title := Label.new()
-    title.text = "МАСТЕРСКАЯ • СОЗДАНИЕ"
-    col.add_child(title)
-    status_label = Label.new()
-    status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    col.add_child(status_label)
-    _recipe_button(col,"Каменный топор","hatchet",{"wood":3,"scrap":2}, "Разборка объектов быстрее")
-    _recipe_button(col,"Монтировка","crowbar",{"wood":1,"scrap":4}, "Взлом баррикад и дверей")
-    _recipe_button(col,"Самодельное копьё","spear",{"wood":4,"scrap":1}, "Урон в бою увеличен")
-    _recipe_button(col,"Лук охотника","bow",{"wood":5,"cloth":2}, "Дальняя охота (прототип)")
-    var close: Button = game._make_ui_button(col,"ЗАКРЫТЬ",Vector2.ZERO,Vector2.ZERO)
-    close.pressed.connect(_toggle_craft)
     _refresh_status()
 func _recipe_button(parent: Node, label: String, id: String, cost: Dictionary, note: String) -> void:
     var b: Button = game._make_ui_button(parent,label+"  ["+_cost_text(cost)+"]",Vector2.ZERO,Vector2.ZERO)
@@ -166,9 +151,9 @@ func _toggle_stealth(active: bool) -> void:
     game.show_message("Тихий шаг включён" if active else "Обычная стойка")
 func try_interact() -> bool:
     return false
-func try_attack(damage: float = 1.0) -> bool:
+func try_attack(damage: float = 1.0, reach: float = 2.8) -> bool:
     var closest: Node3D = null
-    var best := 7.0 if game.player.equipped_weapon == "bow" else 2.8
+    var best := reach
     for a in animals:
         if is_instance_valid(a):
             var d: float = game.player.global_position.distance_to(a.global_position)
