@@ -189,7 +189,9 @@ func _build_ui() -> void:
         holder.add_child(box)
         tab_boxes[String(tab["id"])] = box
         for key in tab["keys"]:
-            if ML.has_assets() and String(key) in ["nose", "mouth", "mark"]:
+            if ML.kit_mode() and String(key) in ["nose", "brows", "mark", "beard", "glasses"]:
+                continue
+            if ML.has_assets() and not ML.kit_mode() and String(key) in ["nose", "mouth", "mark"]:
                 continue
             _build_row(box, def_by_key[key])
     _set_tab("body")
@@ -374,7 +376,8 @@ func _refresh_all() -> void:
                 var swatches: Array = entry["swatches"]
                 for i in range(swatches.size()):
                     _style_swatch(swatches[i], colors[i], i == int(opts[key]))
-    (rows["beard"]["row"] as Control).visible = int(opts["gender"]) == 0
+    if rows.has("beard"):
+        (rows["beard"]["row"] as Control).visible = int(opts["gender"]) == 0
     _rebuild_preview()
 
 func _rebuild_preview() -> void:

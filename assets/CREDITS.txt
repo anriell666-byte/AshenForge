@@ -8,3 +8,4 @@ Files were obtained from public CC0 redistributions on GitHub
 (TM-fez/postapoc3-play, 511action/descent-3d-assets). Textures were left as shipped.
 
 assets/models/bosses: AFTERFALL boss blockout models (Butcher, Titan, Distorted, Carrier), provided by the project owner.
+assets/models/kit: AFTERFALL hero customization kit (blockout heroes, hair, faces, outfits), provided by the project owner.

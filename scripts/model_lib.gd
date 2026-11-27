@@ -11,6 +11,7 @@ const MONSTER_DIR := "res://assets/models/monsters/"
 const HB = preload("res://scripts/human_builder.gd")
 const MD = preload("res://scripts/monster_data.gd")
 const GM = preload("res://scripts/gear_models.gd")
+const KH = preload("res://scripts/kit_hero.gd")
 const ID = preload("res://scripts/items_data.gd")
 
 ## kind (or id) -> model file, target height at scale 1.0 and animation clip names
@@ -27,8 +28,11 @@ const HERO_CLIPS := {"idle": "Idle", "walk": "Walk", "run": "Sprint", "attack": 
 static var _hero_lib: AnimationLibrary = null
 
 # ------------------------------------------------------------------ helpers
+static func kit_mode() -> bool:
+    return KH.has_assets()
+
 static func has_assets() -> bool:
-    return ResourceLoader.exists(HERO_MALE) and ResourceLoader.exists(HERO_ANIMS)
+    return KH.has_assets() or ResourceLoader.exists(HERO_MALE) and ResourceLoader.exists(HERO_ANIMS)
 
 static func _skeleton_of(n: Node) -> Skeleton3D:
     return n.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -229,6 +233,8 @@ static func _flatten(node: Node) -> void:
 
 # ------------------------------------------------------------------ hero
 static func build_hero(raw_opts: Dictionary, gear: Dictionary = {}) -> Dictionary:
+    if KH.has_assets():
+        return KH.build(raw_opts, gear)
     var o := HB.sanitize(raw_opts)
     var female: bool = int(o["gender"]) == 1
     var scene := load(HERO_FEMALE if female else HERO_MALE) as PackedScene
