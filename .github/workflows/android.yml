@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -87,3 +87,12 @@ jobs:
           path: build/afterfall-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Publish test APK as a pre-release (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="test-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" build/afterfall-debug.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Test build $GITHUB_RUN_NUMBER ($GITHUB_REF_NAME)" \
+            --notes "Manual test build from $GITHUB_REF_NAME at $GITHUB_SHA"
